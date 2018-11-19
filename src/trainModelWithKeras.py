@@ -139,10 +139,10 @@ class Model:
         self.model = Sequential()
 
         #以下代码将顺序添加CNN网络需要的各层，一个add就是一个网络层
-        self.model.add(Convolution2D(64, 3, 3, border_mode='same',
+        self.model.add(Convolution2D(64, 3, 3, border_mode='valid',
                                      input_shape = dataset.input_shape))
         self.model.add(Activation('relu'))
-        self.model.add(Convolution2D(64, 3, 3, border_mode='same'))
+        self.model.add(Convolution2D(64, 3, 3, border_mode='valid'))
         self.model.add(Activation('relu'))
         #对于BN层的参数，如果如果输入是形如（samples，channels，rows，cols）的4D图像张量，则应设置规范化的轴为1
         #即设置axis=1 使得该网络层在规范化时沿着通道轴规范化
@@ -169,30 +169,30 @@ class Model:
         self.model.add(MaxPooling2D(pool_size=(2, 2)))
         self.model.add(Dropout(0.25))
 
-        self.model.add(Convolution2D(128, 3, 3, border_mode='same'))
+        self.model.add(Convolution2D(128, 3, 3, border_mode='valid'))
         self.model.add(Activation('relu'))
-        self.model.add(Convolution2D(128, 3, 3, border_mode='same'))
-        self.model.add(Activation('relu'))
-        self.model.add(MaxPooling2D(pool_size=(2, 2)))
-        self.model.add(Dropout(0.25))
-
-        self.model.add(Convolution2D(256, 3, 3, border_mode='same'))
-        self.model.add(Activation('relu'))
-        self.model.add(Convolution2D(256, 3, 3, border_mode='same'))
+        self.model.add(Convolution2D(128, 3, 3, border_mode='valid'))
         self.model.add(Activation('relu'))
         self.model.add(MaxPooling2D(pool_size=(2, 2)))
         self.model.add(Dropout(0.25))
 
-        self.model.add(Convolution2D(512, 3, 3, border_mode='same'))
+        self.model.add(Convolution2D(256, 3, 3, border_mode='valid'))
         self.model.add(Activation('relu'))
-        self.model.add(Convolution2D(512, 3, 3, border_mode='same'))
+        self.model.add(Convolution2D(256, 3, 3, border_mode='valid'))
         self.model.add(Activation('relu'))
         self.model.add(MaxPooling2D(pool_size=(2, 2)))
         self.model.add(Dropout(0.25))
 
-        self.model.add(Convolution2D(512, 3, 3, border_mode='same'))
+        self.model.add(Convolution2D(512, 3, 3, border_mode='valid'))
         self.model.add(Activation('relu'))
-        self.model.add(Convolution2D(512, 3, 3, border_mode='same'))
+        self.model.add(Convolution2D(512, 3, 3, border_mode='valid'))
+        self.model.add(Activation('relu'))
+        self.model.add(MaxPooling2D(pool_size=(2, 2)))
+        self.model.add(Dropout(0.25))
+
+        self.model.add(Convolution2D(512, 3, 3, border_mode='valid'))
+        self.model.add(Activation('relu'))
+        self.model.add(Convolution2D(512, 3, 3, border_mode='valid'))
         self.model.add(Activation('relu'))
         self.model.add(MaxPooling2D(pool_size=(2, 2)))                      #11 池化层
         self.model.add(Dropout(0.25))                                       #12 Dropout层
