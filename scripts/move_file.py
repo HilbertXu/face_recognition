@@ -20,8 +20,8 @@ DES_DIR = '/home/kamerider/temp'
 #最终要求的数据集储存方式
 #TRAIN_DIR/1611xxx/images(700 pics)
 #VALID_DIR/1611xxx/images(300 pics)
-TRAIN_DIR = '/home/kamerider/to/train_data'
-VALID_DIR = '/home/kamerider/to/valid_data'
+TRAIN_DIR = '/home/kamerider/dataset/train_data'
+VALID_DIR = '/home/kamerider/dataset/valid_data'
 
 #储存格式不正确的数据集的根目录
 #FROM_DIR/1611xxx/01/images
@@ -44,7 +44,7 @@ def Find_Image (path):
     is_visited = True
     if not os.path.exists(DES_DIR):
         os.chdir(os.path.abspath(os.path.join(DES_DIR,"../")))
-        os.mkdir("to")
+        os.mkdir("temp")
     for File in os.listdir (path):
         full_path = os.path.abspath (os.path.join(path,File))
         if os.path.isdir (full_path):
@@ -76,6 +76,9 @@ def read_image(path):
     #先将图片全部读取到image里面，然后打乱image
     #现在图片储存在/home/kamerider/to文件夹中
     #储存路径为：/to/1611xxx/images
+    if not os.path.exists(DATASET):
+        os.chdir(os.path.abspath(os.path.join(DATASET,"../")))
+	os.mkdir("dataset")
     for label in labels:
         #遍历每一个文件夹
         print "current label is " + label
@@ -108,7 +111,7 @@ def read_image(path):
         
         count = 0
         for File in os.listdir(folder_path):
-            #遍历每一个文件夹内的照片并储存
+            #遍历每一个文件夹内的照片并移动到指定位置
             full_path = os.path.abspath(os.path.join(folder_path, File))
             filename = Get_ID(full_path,os.path.abspath(os.path.join(full_path,"../")))
             train_image_path = os.path.abspath(os.path.join(train_path, filename))
@@ -125,7 +128,7 @@ def read_image(path):
         #读完一个文件夹的图片之后将图片打乱并7/3分割
         #然后储存到指定路径下的train_data和valid_data文件夹中
 
-                
+    print ("Remove temporary folder %s"%(DES_DIR))
     shutil.rmtree(DES_DIR)
     return 0
                     
