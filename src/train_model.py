@@ -52,8 +52,8 @@ class Train:
             print 
             dataset.images, dataset.labels = shuffle(dataset.images, dataset.labels, random_state=seed)
             self.kfold = StratifiedKFold (n_splits=10, shuffle=True, random_state=seed)
-            print self.kfold
-            print self.kfold.split(dataset.images, dataset.labels)
+            print (self.kfold)
+            print (self.kfold.split(dataset.images, dataset.labels))
             #for train_idx, valid_idx in self.kfold.split(dataset.images, dataset.labels):
                 #print ("Train_Index: ", train_idx, "size of train index is: ", train_idx.shape)
                 #print ("Valid_Index: ", valid_idx, "size of valid index is: ", valid_idx.shape)

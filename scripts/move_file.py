@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
-#!/usr/bin/env python
-
+#!/usr/bin/python
 '''
 Date: 2018/12/25
 Author: Xu Yucheng
@@ -65,11 +64,11 @@ def Find_Image (path):
                         os.mkdir(curr_id)
                     else:
                         shutil.copy(full_path, DES_PATH)
-                    
-                    if is_visited:
-                        labels.append(curr_id)
-                        print ("\033[0;31;40m Images in %s have been moved to %s\033[0m"%(face_body_path, DES_PATH))
-                        is_visited = False
+
+                if is_visited:
+                    labels.append(curr_id)
+                    print ("\033[0;31;40m Images in %s have been moved to %s\033[0m"%(face_body_path, DES_PATH))
+                    is_visited = False
     return 0
 
 def read_image(path):
@@ -78,10 +77,11 @@ def read_image(path):
     #储存路径为：/to/1611xxx/images
     if not os.path.exists(DATASET):
         os.chdir(os.path.abspath(os.path.join(DATASET,"../")))
-	os.mkdir("dataset")
+        os.mkdir("dataset")
+
     for label in labels:
         #遍历每一个文件夹
-        print "current label is " + label
+        print ("current label is ") + label
         #更新训练集和测试集的绝对路径
         train_path = os.path.abspath(os.path.join(DATASET, 'dataset_train'))
         valid_path = os.path.abspath(os.path.join(DATASET, 'dataset_test'))
@@ -100,15 +100,15 @@ def read_image(path):
             os.chdir(valid_path)
             os.mkdir(label)
             os.chdir(current_path)
-        
+
         #更新训练集和测试集的绝对路径
         train_path = os.path.abspath(os.path.join(train_path,label))
         valid_path = os.path.abspath(os.path.join(valid_path,label))
 
         folder_path = os.path.abspath(os.path.join(DES_DIR, label))
-        
+
         print ("Reading images from %s"%(folder_path))
-        
+
         count = 0
         for File in os.listdir(folder_path):
             #遍历每一个文件夹内的照片并移动到指定位置
@@ -124,17 +124,17 @@ def read_image(path):
                 shutil.move(full_path, valid_image_path)
 
 
-        
-        #读完一个文件夹的图片之后将图片打乱并7/3分割
-        #然后储存到指定路径下的train_data和valid_data文件夹中
+
+    #读完一个文件夹的图片之后将图片打乱并7/3分割
+    #然后储存到指定路径下的train_data和valid_data文件夹中
 
     print ("Remove temporary folder %s"%(DES_DIR))
     shutil.rmtree(DES_DIR)
     return 0
-                    
+
 if __name__ == '__main__':
     Find_Image(FROM_DIR)
-    print labels
+    print (labels)
     read_image(DATASET)
-    
-                    
+
+

@@ -48,28 +48,28 @@ class Dataset:
         这样就可以把一个string类型的列表转化为一个one-hot编码方式所需求得顺序np.array数组
         '''
         #using os operation to get the number of classes
-        print 'the original class labels is: '
+        print ('the original class labels is: ')
         #print labels
         folders = os.listdir (self.DATASET_ROOT_DIR)
         folders = np.asarray (folders, dtype = np.float32)
-        print folders
+        print (folders)
 
         self.minimun_id = min(folders)
-        print 'the minimum class label is: ' + str(self.minimun_id)
+        print ('the minimum class label is: ') + str(self.minimun_id)
 
         class_num = len(folders)
         self.predefined_class = class_num
-        print 'the total number of predefined classes is: ' + str(class_num)
+        print ('the total number of predefined classes is: ') + str(class_num)
 
         for folder in folders:
             temp = int(folder) - self.minimun_id
             self.relative_sheet = np.append (self.relative_sheet, temp)
-        print 'the relative class label sheet is: '
-        print self.relative_sheet
+        print ('the relative class label sheet is: ')
+        print (self.relative_sheet)
 
         self.order_sheet = Bubble_Sort (self.relative_sheet)
-        print 'generated order sheet: '
-        print self.order_sheet
+        print ('generated order sheet: ')
+        print (self.order_sheet)
     
     @clock
     def Find_Image (self, path):
@@ -85,8 +85,8 @@ class Dataset:
                         cv2.imread(full_path), cv2.COLOR_BGR2RGB
                     ).astype(np.float32)/255
                     if image.shape != (128,128,3):
-                        print 'detected image with incorrect size: ' + full_path
-                        print 'the shape of this image is:' + str(image.shape)
+                        print ('detected image with incorrect size: ' + full_path)
+                        print ('the shape of this image is:' + str(image.shape))
                         image = resize_image (image)
                     #image = cv2.imread(full_path)
                     self.images.append(image)
@@ -119,8 +119,8 @@ class Dataset:
                         cv2.imread(full_path), cv2.COLOR_BGR2RGB
                     ).astype(np.float32)/255
                     if image.shape != (128,128,3):
-                        print 'detected image with incorrect size: ' + full_path
-                        print 'the shape of this image is:' + str(image.shape)
+                        print ('detected image with incorrect size: ') + full_path
+                        print ('the shape of this image is:') + str(image.shape)
                         image = resize_image (image)
                     #image = cv2.imread(full_path)
                     self.test_image.append(image)
@@ -143,28 +143,28 @@ class Dataset:
     def Load_Dataset (self):
         #set maximum output in terminal
         np.set_printoptions(threshold = 1e6)
-        print 'Generating Order Sheet'
+        print ('Generating Order Sheet')
         self.Generate_OrderSheet()
-        print 'Find All images & Generate Labels'
+        print ('Find All images & Generate Labels')
         self.Find_Image(self.DATASET_ROOT_DIR)
         self.Test_Data(TESTDATA_DIR)
 
         self.images = np.array(self.images)
         self.test_image = np.array(self.test_image)
 
-        print '==========================='
-        print '||image array shape is : ||'
-        print '==========================='
-        print self.images.shape
-        print '==========================='
-        print '||labels array shape is :||'
-        print '==========================='
-        print self.labels.shape
-        print '==========================='   
-        print '||test image shape is :  ||'
-        print '==========================='
-        print self.test_image.shape
-        print '==========================='    
+        print ('===========================')
+        print ('||image array shape is : ||')
+        print ('===========================')
+        print (self.images.shape)
+        print ('===========================')
+        print ('||labels array shape is :||')
+        print ('===========================')
+        print (self.labels.shape)
+        print ('===========================')  
+        print ('||test image shape is :  ||')
+        print ('===========================')
+        print (self.test_image.shape)
+        print ('===========================')    
 
        
 if __name__ == '__main__':
