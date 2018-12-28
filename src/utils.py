@@ -25,7 +25,7 @@ def clock(func):
     return clocked
 
 def resize_image (image):
-        return cv2.resize (image, (128, 128))
+        return cv2.resize (image, (64, 64))
     
 def Bubble_Sort (array):
         '''

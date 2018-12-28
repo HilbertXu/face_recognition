@@ -1,5 +1,10 @@
 #!/usr/bin/env python
 #-*- coding: utf-8 -*-
+'''
+Date: 2018/11/21
+Author: Xu Yucheng
+Abstract: Code for resize images in folder
+'''
 import os
 import cv2
 

@@ -24,7 +24,7 @@ VALID_DIR = '/home/kamerider/dataset/valid_data'
 
 #储存格式不正确的数据集的根目录
 #FROM_DIR/1611xxx/01/images
-FROM_DIR = '/home/kamerider/source'
+FROM_DIR = '/home/kamerider/source_for_test'
 DATASET = '/home/kamerider/dataset'
 
 labels=[]
@@ -81,7 +81,7 @@ def read_image(path):
 
     for label in labels:
         #遍历每一个文件夹
-        print ("current label is ") + label
+        print ("current label is " + label)
         #更新训练集和测试集的绝对路径
         train_path = os.path.abspath(os.path.join(DATASET, 'dataset_train'))
         valid_path = os.path.abspath(os.path.join(DATASET, 'dataset_test'))

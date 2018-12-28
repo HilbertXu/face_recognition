@@ -2,8 +2,6 @@
 #!/usr/bin/env python
 
 #Tensorflow part & Keras part
-import numpy as np
-import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from keras.preprocessing.image import ImageDataGenerator
 from keras.models import Sequential
@@ -16,7 +14,6 @@ from keras import optimizers
 from keras.utils import np_utils
 from keras.models import load_model
 from keras import backend as K
-from load_data import *
 
 MODEL_PATH = '/home/kamerider/machine_learning/face_recognition/model/face_recognition.h5'
 HISTORY_PATH = '/home/kamerider/machine_learning/face_recognition/History/Train_History.txt'
@@ -29,7 +26,7 @@ class Model:
     def build_model(self, dataset, nb_classes = 62):
         #构建一个空的网络模型，它是一个线性堆叠模型，各神经网络层会被顺序添加，专业名称为序贯模型或线性堆叠模型
         #使用了一个标准的VGG-16网络结构
-        #输入之前需要将图像resize成为224x224的大小
+        #输入之前需要将图像resize成为64x64的大小
         self.model = Sequential()
 
         #以下代码将顺序添加CNN网络需要的各层，一个add就是一个网络层
@@ -60,8 +57,8 @@ class Model:
         gamma_constraint: 可选的gamma约束
         '''
 
-        #Uncomment to use BN Layer in train
-        self.model.add(BatchNormalization(epsilon=1e-06, mode=0, axis=-1, momentum=0.9, weights=None, beta_init='zero', gamma_init='one'))
+        #Uncomment to use BN Layer during training
+        #self.model.add(BatchNormalization(epsilon=1e-06, mode=0, axis=-1, momentum=0.9, weights=None, beta_init='zero', gamma_init='one'))
         self.model.add(MaxPooling2D(pool_size=(2, 2)))
         self.model.add(Dropout(0.25))
 
@@ -106,120 +103,7 @@ class Model:
         self.model.add(Activation('softmax'))
         #输出模型概况
         self.model.summary()
-    
-    def train(self, dataset, batch_size = 32, nb_epoch = 25, data_augmentation = False):
 
-        #optimizers
-        sgd = SGD(lr = 0.01, decay = 1e-6,
-                  momentum = 0.9, nesterov = True) #采用SGD+momentum的优化器进行训练，首先生成一个优化器对象
-        adam = optimizers.Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=None, decay=0.0, amsgrad=False)
-
-        #compile model
-        self.model.compile(loss='categorical_crossentropy',
-                           optimizer='sgd',
-                           metrics=['accuracy'])   #完成实际的模型配置工作
-
-        #不使用数据提升，所谓的提升就是从我们提供的训练数据中利用旋转、翻转、加噪声等方法创造新的
-        #训练数据，有意识的提升训练数据规模，增加模型训练量
-        if not data_augmentation:
-            #recording loss, loss_val, accuracy, accuracy_val
-            #and wirte it to Train_History.txt
-            hist = self.model.fit(dataset.train_images,
-                           dataset.train_labels,
-                           batch_size = batch_size,
-                           nb_epoch = nb_epoch,
-                           validation_split = 0.33,
-                           #validation_data=(dataset.valid_images, dataset.valid_labels),
-                           #验证集是用来在训练过程中优化参数的，可以直接使用validation_split从训练集中划分出来
-                           shuffle = True)
-            with open(HISTORY_PATH,'w') as f:
-                f.write(str(hist.history))
-
-            #visualization
-            #store the output history
-            model_val_loss = hist.history['val_loss']
-            model_val_acc  = hist.history['val_acc']
-            model_loss     = hist.history['loss']
-            model_acc      = hist.history['acc']
-
-            #Using matplotlib to visualize
-            epochs = np.arange(nb_epoch)+1
-            plt.figure()
-            plt.plot(epochs, model_val_loss, label = 'model_val_loss')
-            plt.plot(epochs, model_loss, label = 'model_loss')
-            plt.title('visualize the training process')
-            plt.xlabel('Epoch #')
-            plt.ylabel('Validation Loss & Train Loss')
-            plt.legend()
-            plt.savefig(FIGURE_PATH+'/loss_figure.png')
-            plt.show()
-
-            plt.figure()
-            plt.plot(epochs, model_val_acc, label = 'model_val_acc')
-            plt.plot(epochs, model_acc, label = 'model_acc')
-            plt.title('visualize the training process')
-            plt.xlabel('Epoch #')
-            plt.ylabel('Validation accuracy & Train accuracy')
-            plt.legend()
-            plt.savefig(FIGURE_PATH+'/acc_figure.png')
-            plt.show()
-
-        #使用实时数据提升
-        else:
-            #定义数据生成器用于数据提升，其返回一个生成器对象datagen，datagen每被调用一
-            #次其生成一组数据（顺序生成），节省内存，其实就是python的数据生成器
-            datagen = ImageDataGenerator(
-                featurewise_center = False,             #是否使输入数据去中心化（均值为0），
-                samplewise_center  = False,             #是否使输入数据的每个样本均值为0
-                featurewise_std_normalization = False,  #是否数据标准化（输入数据除以数据集的标准差）
-                samplewise_std_normalization  = False,  #是否将每个样本数据除以自身的标准差
-                zca_whitening = False,                  #是否对输入数据施以ZCA白化
-                rotation_range = 20,                    #数据提升时图片随机转动的角度(范围为0～180)
-                width_shift_range  = 0.2,               #数据提升时图片水平偏移的幅度（单位为图片宽度的占比，0~1之间的浮点数）
-                height_shift_range = 0.2,               #同上，只不过这里是垂直
-                horizontal_flip = True,                 #是否进行随机水平翻转
-                vertical_flip = False)                  #是否进行随机垂直翻转
-
-            #计算整个训练样本集的数量以用于特征值归一化、ZCA白化等处理
-            datagen.fit(dataset.train_images)
-
-            #利用生成器开始训练模型
-            hist = self.model.fit_generator(datagen.flow(dataset.train_images, dataset.train_labels,
-                                                   batch_size = batch_size),
-                                     samples_per_epoch = dataset.train_images.shape[0],
-                                     nb_epoch = nb_epoch,
-                                     validation_data = (dataset.valid_images, dataset.valid_labels))
-            with open(HISTORY_PATH,'w') as f:
-                f.write(str(hist.history))
-
-            #visualization
-            #store the output history
-            model_val_loss = hist.history['val_loss']
-            model_val_acc  = hist.history['val_acc']
-            model_loss     = hist.history['loss']
-            model_acc      = hist.history['acc']
-
-            #Using matplotlib to visualize
-            epochs = np.arange(nb_epoch)+1
-            plt.figure()
-            plt.plot(epochs, model_val_loss, label = 'model_val_loss')
-            plt.plot(epochs, model_loss, label = 'model_loss')
-            plt.title('visualize the training process')
-            plt.xlabel('Epoch #')
-            plt.ylabel('Validation Loss & Train Loss')
-            plt.legend()
-            plt.savefig(FIGURE_PATH+'/loss_figure.png')
-            plt.show()
-
-            plt.figure()
-            plt.plot(epochs, model_val_acc, label = 'model_val_acc')
-            plt.plot(epochs, model_acc, label = 'model_acc')
-            plt.title('visualize the training process')
-            plt.xlabel('Epoch #')
-            plt.ylabel('Validation accuracy & Train accuracy')
-            plt.legend()
-            plt.savefig(FIGURE_PATH+'/acc_figure.png')
-            plt.show()
     #识别人脸
     def face_predict(self, image):
         #依然是根据后端系统确定维度顺序
@@ -254,3 +138,8 @@ class Model:
     def evaluate(self, dateset):
         score = self.model.evaluate(dataset.test_images, dataset.test_labels, verbose=1)
         print("%s: %.2f%%" % (self.model.metrics_names[1], score[1] * 100))
+
+if __name__ == '__main__':
+    #test for building model
+    VGG_16 = Model()
+    VGG_16.build_model()

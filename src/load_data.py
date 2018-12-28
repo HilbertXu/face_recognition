@@ -4,7 +4,7 @@
 '''
 Date: 2018/11/21
 Author: Xu Yucheng 1611453
-Abstract: Code for loading dataset and spliting for train_data, valid_data, test_data 
+Abstract: Code for loading dataset
 '''
 import os
 import sys
@@ -15,12 +15,12 @@ from keras.utils import np_utils
 from sklearn.model_selection import train_test_split
 from utils import clock, resize_image, Bubble_Sort, Get_ID
 
-TESTDATA_DIR = '/home/kamerider/machine_learning/face_recognition/TestData'
+TESTDATA_DIR = '/home/kamerider/Documents/TestData'
 
 class Dataset:
     def __init__(self, path):
         self.DATASET_ROOT_DIR = path
-        self.IMAG_SIZE = 224
+        self.IMAG_SIZE = 64
         self.minimun_id = 9999999
         #order_sheet to generate one-hot sheet
         self.order_sheet = np.array ([], dtype=np.int32)
@@ -36,7 +36,7 @@ class Dataset:
         self.test_image = []
         self.test_label = np.array ([], dtype=np.uint8)
 
-        self.input_shape = (128,128,3)
+        self.input_shape = (64,64,3)
     
     def Generate_OrderSheet (self):
         '''
@@ -48,29 +48,43 @@ class Dataset:
         这样就可以把一个string类型的列表转化为一个one-hot编码方式所需求得顺序np.array数组
         '''
         #using os operation to get the number of classes
-        print ('the original class labels is: ')
+        print ("============================================================================")
+        print ('||                 the original class labels is:                          ||')
+        print ("============================================================================")
         #print labels
         folders = os.listdir (self.DATASET_ROOT_DIR)
         folders = np.asarray (folders, dtype = np.float32)
         print (folders)
+        print ("============================================================================\n")
 
         self.minimun_id = min(folders)
-        print ('the minimum class label is: ') + str(self.minimun_id)
+        print ("=======================================")
+        print ('the minimum class label is: ' + str(self.minimun_id) + '||')
+        print ("=======================================\n")
+        
 
         class_num = len(folders)
         self.predefined_class = class_num
-        print ('the total number of predefined classes is: ') + str(class_num)
+        print ("=================================================")
+        print ('the total number of predefined classes is: ' + str(class_num) + '||')
+        print ("=================================================\n")
 
         for folder in folders:
             temp = int(folder) - self.minimun_id
             self.relative_sheet = np.append (self.relative_sheet, temp)
-        print ('the relative class label sheet is: ')
+        print ("=============================================================================")
+        print ('||             the relative class label sheet is:                          ||')
+        print ("=============================================================================")
         print (self.relative_sheet)
+        print ("=============================================================================\n")
 
         self.order_sheet = Bubble_Sort (self.relative_sheet)
-        print ('generated order sheet: ')
+        print ("=============================================================================")
+        print ('||                  generated order sheet:                                 ||')
+        print ("=============================================================================")
         print (self.order_sheet)
-    
+        print ("=============================================================================\n")
+
     @clock
     def Find_Image (self, path):
         for File in os.listdir (path):
@@ -82,9 +96,9 @@ class Dataset:
 
                     #Find & Store images
                     image = cv2.cvtColor (
-                        cv2.imread(full_path), cv2.COLOR_BGR2RGB
+                        resize_image(cv2.imread(full_path)), cv2.COLOR_BGR2RGB
                     ).astype(np.float32)/255
-                    if image.shape != (128,128,3):
+                    if image.shape != (64,64,3):
                         print ('detected image with incorrect size: ' + full_path)
                         print ('the shape of this image is:' + str(image.shape))
                         image = resize_image (image)
@@ -93,7 +107,7 @@ class Dataset:
 
                     #Create Labels
                     #getting the upper level path
-                    folder_path = os.path.abspath(os.path.join((full_path),"../.."))
+                    folder_path = os.path.abspath(os.path.join((full_path),"../"))
                     upper_folder_path = os.path.abspath(os.path.dirname(folder_path))
                     #do a string substraction
                     current_label = Get_ID(folder_path, upper_folder_path)
@@ -116,11 +130,11 @@ class Dataset:
 
                     #Find & Store images
                     image = cv2.cvtColor (
-                        cv2.imread(full_path), cv2.COLOR_BGR2RGB
+                        resize_image(cv2.imread(full_path)), cv2.COLOR_BGR2RGB
                     ).astype(np.float32)/255
-                    if image.shape != (128,128,3):
-                        print ('detected image with incorrect size: ') + full_path
-                        print ('the shape of this image is:') + str(image.shape)
+                    if image.shape != (64,64,3):
+                        print ('detected image with incorrect size: ' + full_path)
+                        print ('the shape of this image is:' + str(image.shape))
                         image = resize_image (image)
                     #image = cv2.imread(full_path)
                     self.test_image.append(image)
@@ -141,15 +155,21 @@ class Dataset:
 
     
     def Load_Dataset (self):
+        print ('\n')
         #set maximum output in terminal
         np.set_printoptions(threshold = 1e6)
-        print ('Generating Order Sheet')
+        print ("=========================")
+        print ('Generating Order Sheet ||')
+        print ("=========================\n")
         self.Generate_OrderSheet()
-        print ('Find All images & Generate Labels')
+        print ("====================================")
+        print ('Find All images & Generate Labels ||')
+        print ("====================================\n")
         self.Find_Image(self.DATASET_ROOT_DIR)
         self.Test_Data(TESTDATA_DIR)
 
         self.images = np.array(self.images)
+        #self.labels =np_utils.to_categorical(self.labels, self.predefined_class)
         self.test_image = np.array(self.test_image)
 
         print ('===========================')
