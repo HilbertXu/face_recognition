@@ -1,6 +1,12 @@
 # -*- coding: utf-8 -*-
 #!/usr/bin/env python
 
+'''
+Date: 2018/11/23
+Author: Xu Yucheng
+Abstract: Code for build model with keras as well as save model, load model
+'''
+
 #Tensorflow part & Keras part
 from sklearn.model_selection import train_test_split
 from keras.preprocessing.image import ImageDataGenerator
@@ -15,7 +21,6 @@ from keras.utils import np_utils
 from keras.models import load_model
 from keras import backend as K
 
-MODEL_PATH = '/home/kamerider/machine_learning/face_recognition/model/face_recognition.h5'
 HISTORY_PATH = '/home/kamerider/machine_learning/face_recognition/History/Train_History.txt'
 FIGURE_PATH = '/home/kamerider/machine_learning/face_recognition/History'
 
@@ -104,40 +109,78 @@ class Model:
         #输出模型概况
         self.model.summary()
 
-    #识别人脸
-    def face_predict(self, image):
-        #依然是根据后端系统确定维度顺序
-        if K.image_dim_ordering() == 'th' and image.shape != (1, 3, IMAGE_SIZE, IMAGE_SIZE):
-            #image = resize_image(image)                             #尺寸必须与训练集一致都应该是IMAGE_SIZE x IMAGE_SIZE
-            image = image.reshape((1, 3, IMAGE_SIZE, IMAGE_SIZE))   #与模型训练不同，这次只是针对1张图片进行预测
-        elif K.image_dim_ordering() == 'tf' and image.shape != (1, IMAGE_SIZE, IMAGE_SIZE, 3):
-            #image = resize_image(image)
-            image = image.reshape((1, IMAGE_SIZE, IMAGE_SIZE, 3))
+    #由于函数keras.wrappers.scikit_learn.KerasClassifier(build_fn=None, **sk_params)第一个参数应该为一个编译好的模型
+    #所以增加一个建立并编译模型的函数，模型与build_model()中的一致，只是加入了编译命令以及返回值
+    def model_for_scikit(self):
 
-        #浮点并归一化
-        image = image.astype('float32')
-        image /= 255
+        #when you use different Dataset
+        #remember to change input_shape, nb_classes
+        self.model = Sequential()
 
-        #给出输入属于各个类别的概率
-        result = self.model.predict_proba(image)
-        print('result:', result)
+        #以下代码将顺序添加CNN网络需要的各层，一个add就是一个网络层
+        self.model.add(Convolution2D(64, 3, 3, border_mode='same',
+                                     input_shape = (64,64,3)))
+        self.model.add(Activation('relu'))
+        self.model.add(Convolution2D(64, 3, 3, border_mode='same'))
+        self.model.add(Activation('relu'))
+        self.model.add(MaxPooling2D(pool_size=(2, 2)))
+        self.model.add(Dropout(0.25))
 
-        #给出类别预测：每一个类别的置信度
-        result = self.model.predict_classes(image)
+        self.model.add(Convolution2D(128, 3, 3, border_mode='same'))
+        self.model.add(Activation('relu'))
+        self.model.add(Convolution2D(128, 3, 3, border_mode='same'))
+        self.model.add(Activation('relu'))
+        self.model.add(MaxPooling2D(pool_size=(2, 2)))
+        self.model.add(Dropout(0.25))
 
-        #返回类别预测结果
-        return result[0]
+        self.model.add(Convolution2D(256, 3, 3, border_mode='same'))
+        self.model.add(Activation('relu'))
+        self.model.add(Convolution2D(256, 3, 3, border_mode='same'))
+        self.model.add(Activation('relu'))
+        self.model.add(MaxPooling2D(pool_size=(2, 2)))
+        self.model.add(Dropout(0.25))
 
+        self.model.add(Convolution2D(512, 3, 3, border_mode='same'))
+        self.model.add(Activation('relu'))
+        self.model.add(Convolution2D(512, 3, 3, border_mode='same'))
+        self.model.add(Activation('relu'))
+        self.model.add(MaxPooling2D(pool_size=(2, 2)))
+        self.model.add(Dropout(0.25))
 
-    def save_model(self, file_path = MODEL_PATH):
+        self.model.add(Convolution2D(512, 3, 3, border_mode='same'))
+        self.model.add(Activation('relu'))
+        self.model.add(Convolution2D(512, 3, 3, border_mode='same'))
+        self.model.add(Activation('relu'))
+        self.model.add(MaxPooling2D(pool_size=(2, 2)))                      #11 池化层
+        self.model.add(Dropout(0.25))                                       #12 Dropout层
+
+        self.model.add(Flatten())                                           #13 Flatten层
+        self.model.add(Dense(4096))                                          #14 Dense层,又被称作全连接层
+        self.model.add(Activation('relu'))                                  #15 激活函数层
+        self.model.add(Dropout(0.5))                                        #16 Dropout层
+
+        self.model.add(Dense(4096))
+        self.model.add(Activation('relu'))                                   #17 Dense层
+        self.model.add(Dropout(0.5))
+
+        #nb_classes
+        self.model.add(Dense(62))
+        self.model.add(Activation('softmax'))
+
+        sgd = SGD(lr = 0.01, decay = 1e-6,
+                  momentum = 0.9, nesterov = True) #采用SGD+momentum的优化器进行训练，首先生成一个优化器对象
+        self.model.compile(loss='categorical_crossentropy',
+                           optimizer='sgd',
+                           metrics=['accuracy'])   #完成实际的模型配置工作
+
+        return self.model
+
+    def save_model(self, file_path):
         self.model.save(file_path)
 
-    def load_model(self, file_path = MODEL_PATH):
+    def load_model(self, file_path):
         self.model = load_model(file_path)
 
-    def evaluate(self, dateset):
-        score = self.model.evaluate(dataset.test_images, dataset.test_labels, verbose=1)
-        print("%s: %.2f%%" % (self.model.metrics_names[1], score[1] * 100))
 
 if __name__ == '__main__':
     #test for building model

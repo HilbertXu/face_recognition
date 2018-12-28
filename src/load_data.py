@@ -15,7 +15,8 @@ from keras.utils import np_utils
 from sklearn.model_selection import train_test_split
 from utils import clock, resize_image, Bubble_Sort, Get_ID
 
-TESTDATA_DIR = '/home/kamerider/Documents/TestData'
+#TESTDATA_DIR = '/home/kamerider/Documents/TestData'
+TESTDATA_DIR = '/home/kamerider/Documents/small_test'
 
 class Dataset:
     def __init__(self, path):
@@ -109,14 +110,13 @@ class Dataset:
                     #getting the upper level path
                     folder_path = os.path.abspath(os.path.join((full_path),"../"))
                     upper_folder_path = os.path.abspath(os.path.dirname(folder_path))
-                    #do a string substraction
+                    #do a string subtraction
                     current_label = Get_ID(folder_path, upper_folder_path)
 
                     for i in range(len(self.order_sheet)):
                         temp = int(current_label) - self.minimun_id
                         if temp == self.order_sheet[i]:
                             current_label = i
-                    
                     self.labels = np.append (self.labels, current_label)
 
     @clock
@@ -143,15 +143,14 @@ class Dataset:
                     #getting the upper level path
                     folder_path = os.path.abspath(os.path.join((full_path),"../"))
                     upper_folder_path = os.path.abspath(os.path.dirname(folder_path))
-                    #do a string substraction
+                    #do a string subtraction
                     current_label = Get_ID(folder_path, upper_folder_path)
 
                     for i in range(len(self.order_sheet)):
                         temp = int(current_label) - self.minimun_id
                         if temp == self.order_sheet[i]:
                             current_label = i
-                    
-                    self.test_label = np.append (self.labels, current_label)
+                    self.test_label = np.append (self.test_label, current_label)
 
     
     def Load_Dataset (self):
@@ -185,6 +184,7 @@ class Dataset:
         print ('===========================')
         print (self.test_image.shape)
         print ('===========================')    
+        print (self.test_label.shape)
 
        
 if __name__ == '__main__':
