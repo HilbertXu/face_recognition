@@ -29,6 +29,8 @@ TFRECORD_DIR = '../TFRecords'
 
 
 IMAG_SIZE = 64
+train_data_size = None
+valid_data_size = None
 minimun_id = 9999999
 #order_sheet to generate one-hot sheet
 order_sheet = np.array ([], dtype=np.int32)
@@ -182,7 +184,11 @@ def write_path_to_txt(image_path, label, name):
         filename = os.path.abspath(os.path.join(TFRECORD_DIR, "train.txt"))
         with open(filename, "w") as f:
             print ("[RESULT] Number of train images: %d"%(len(train_labels)))
-            for index in range(len(train_labels)):
+            global train_data_size 
+            train_data_size = len(train_labels)
+            f.write(str(train_data_size)+"\n")
+            f.write(str(predefined_class)+"\n")
+            for index in range(train_data_size):
                 f.write(str(train_image_paths[index]) + " " + str(train_labels[index]) + "\n")
             f.close()
 
@@ -190,7 +196,11 @@ def write_path_to_txt(image_path, label, name):
         filename = os.path.abspath(os.path.join(TFRECORD_DIR, "valid.txt"))
         with open(filename, "w") as f:
             print ("[RESULT] Number of valid images: %d"%(len(valid_labels)))
-            for index in range(len(valid_labels)):
+            global valid_data_size
+            valid_data_size = len(valid_labels)
+            f.write(str(valid_data_size)+"\n")
+            f.write(str(predefined_class)+"\n")
+            for index in range(valid_data_size):
                 f.write(str(valid_image_paths[index]) + " " + str(valid_labels[index]) + "\n")
             f.close()
 
@@ -275,5 +285,5 @@ def load_data_main():
     generate_tfrecord_file()
 
 if __name__ == '__main__':
-    main()
+    load_data_main()
     

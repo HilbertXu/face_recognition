@@ -3,6 +3,13 @@
 #Will try to use faceNet later
 
 
+!!!!
+python 函数定义的时候，有默认值的参数应写在最右侧  ----> 若出现位置混乱： non-default argument follows default argument
+函数调用时默认参数都需要放在最后边(必选参数必须在前,默认在后)  ---->若出现位置混乱： positional argument follows keyword argument
+！！！
+
+
+
 #tensorflow 中图变量
 ##定义图变量的方法：
 1. tf.Variable.init(

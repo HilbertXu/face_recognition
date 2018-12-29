@@ -31,7 +31,6 @@ def weight(
         name, shape, tf.float32, trainable=trainable,
         initializer_weight=initializer
         )
-    )
     return var
 
 ##Relu激活层
@@ -69,7 +68,7 @@ def batch_normal(input_op, name='batch_normal', is_train=True):
             )
 
 #卷积层
-def conv2d(input_op, name='conv2d', output_dim, k_h=3, k_w=3,
+def conv2d(input_op, name, output_dim, k_h, k_w,
             d_h, d_w, p, with_bn=False):
     '''
     tf.nn.conv2d (input, filter, strides, padding, 
@@ -127,7 +126,7 @@ def conv2d(input_op, name='conv2d', output_dim, k_h=3, k_w=3,
 
 
 #全连接层(Dense)
-def fc_layer(input_op, name='fc_layer', output_shape, p):
+def fc_layer(input_op, name, output_shape, p):
     #对一个张量(tensor)使用get_shape()来获取张量的大小，get_shape()返回一个元组
     #元组与list类似，但是元组中的元素不能修改
     #as_list()将元组转换为list
@@ -136,7 +135,7 @@ def fc_layer(input_op, name='fc_layer', output_shape, p):
     #以下生成的所有variable都处于variabel_scope(name)中
     with tf.variable_scope(name):
         kernel = weight(
-            name+'_w', shape=[input_shape, output_shape], 0.02,
+            name+'_w', shape=[input_shape, output_shape], stddev=0.02,
             initializer_weight=tf.contrib.layers.xavier_initializer_conv2d()
             )
         biases  = bias ('biases', [output_shape], 0.1)
@@ -148,7 +147,7 @@ def fc_layer(input_op, name='fc_layer', output_shape, p):
 
 
 #池化层
-def mpool_layer(input_op, , name='max_pool', k_h=2, k_w=2, d_h=2, d_w=2):
+def mpool_layer(input_op, name='max_pool', k_h=2, k_w=2, d_h=2, d_w=2):
     '''
     定义maxpool层
     input：input_op
@@ -179,7 +178,7 @@ def flatten_layer(input_op, name='flatten'):
 
 
 #串联约束条件到feature map
-def conv_cond_concat(input_op, name='concat', cond):
+def conv_cond_concat(input_op, name, cond):
     input_op_shape = input_op.get_shape().as_list()
     cond_shape  = input_op.get_shape().as_list()
 
