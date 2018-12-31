@@ -35,13 +35,15 @@ from keras.utils import np_utils
 from keras.models import load_model
 from keras import backend as K
 from keras.callbacks import TensorBoard
-from keras.callbacks import ModelCheckPoint
+from keras.callbacks import ModelCheckpoint
+#early stopping callback
+from keras.callbacks import EarlyStopping
+from keras.callbacks import ReduceLROnPlateau
 
 #keras wrapper for scikit-learn
 from keras.wrappers.scikit_learn import KerasClassifier
 
-#early stopping callback
-from keras.callbacks import EarlyStopping
+
 
 from load_data import Dataset
 from creat_model import Model
@@ -52,7 +54,7 @@ DATABASE_ROOT_DIR = '/home/kamerider/Documents/DataBase'
 MODEL_PATH = '/home/kamerider/machine_learning/face_recognition/keras/model/'
 HISTORY_PATH = '/home/kamerider/machine_learning/face_recognition/keras/History/Train_History.txt'
 FIGURE_PATH = '/home/kamerider/machine_learning/face_recognition/keras/History'
-CHECK_POINT = '/home/kamerider/machine_learning/face_recognition/keras/checkpoint/weights.{epoch:02d-{val_acc:.2f}}.hdf5'
+CHECKPOINT_DIR = '/home/kamerider/machine_learning/face_recognition/keras/checkpoint'
 
 def print_usage(program_name):
     print ("=================================================")
@@ -94,6 +96,7 @@ class Train:
         #training output
         self.loss = []
         self.acc = []
+        self.callbacks=[]
     
     def convert2oneHot(self, labels, class_num):
         onehot_label = np_utils.to_categorical(labels, class_num)
@@ -104,18 +107,6 @@ class Train:
     #比例为7：3
     def train_with_SplitedData(self, dataset):
 
-        #define callback funcs
-        #在使用ShuffleSplit划分训练集的时候使用EarlyStopping来检测
-        #val_loss是否不再下降，也可以防止过拟合现象
-        early_stopping = EarlyStopping(monitor='val_loss', patience=10, verbose=1, mode='auto')
-
-        #使用CheckPoint来记录训练过程
-        checkpoint = ModelCheckPoint(
-            CHECK_POINT, monitor='val_acc', verbose=1, 
-            save_best_only=True, save_weight_only=False,
-            mode='auto',period=10
-            )
-        
         #手动划分训练集和验证集
         seed = 7
         np.random.seed(seed)
@@ -149,6 +140,27 @@ class Train:
         #不使用数据提升，所谓的提升就是从我们提供的训练数据中利用旋转、翻转、加噪声等方法创造新的
         #训练数据，有意识的提升训练数据规模，增加模型训练量
         if not self.data_augmentation:
+            #define callback funcs
+            #在使用ShuffleSplit划分训练集的时候使用EarlyStopping来检测
+            #val_loss是否不再下降，也可以防止过拟合现象
+            early_stopping = EarlyStopping(monitor='val_loss', patience=10, verbose=1, mode='auto')
+
+            filename = "model_{epoch:02d}-{val_acc:.2f}.h5"
+            CHECK_POINT = os.path.join(CHECKPOINT_DIR, filename)
+            #使用CheckPoint来记录训练过程
+            checkpoint = ModelCheckpoint(
+                CHECK_POINT, monitor='val_acc', verbose=1, 
+                save_best_only=True, save_weights_only=False,
+                mode='auto',period=10
+                )
+            reducelr = ReduceLROnPlateau(
+                monitor='val_loss', factor=0.1, 
+                patience=10, verbose=0, mode='auto', 
+                epsilon=0.0001, cooldown=0, min_lr=0
+                )
+            
+            self.callbacks = [early_stopping, checkpoint, reducelr]
+
             #recording loss, loss_val, accuracy, accuracy_val
             #and wirte it to Train_History.txt
             hist = self.VGG_16.model.fit(self.train_image,
@@ -159,10 +171,8 @@ class Train:
                            validation_data=(self.valid_image, self.valid_label),
                            #验证集是用来在训练过程中优化参数的，可以直接使用validation_split从训练集中划分出来
                            shuffle = True,
-                           callbacks=[
-                               TensorBoard(log_dir='/home/kamerider/machine_learning/face_recognition/keras/log'),
-                               early_stopping,
-                               checkpoint])
+                           callbacks=self.callbacks)
+            print (hist.history.keys())
             with open(HISTORY_PATH,'w') as f:
                 f.write(str(hist.history))
 
@@ -217,16 +227,35 @@ class Train:
             #计算整个训练样本集的数量以用于特征值归一化、ZCA白化等处理
             datagen.fit(self.train_image)
 
+            #define callback funcs
+            #在使用ShuffleSplit划分训练集的时候使用EarlyStopping来检测
+            #val_loss是否不再下降，也可以防止过拟合现象
+            early_stopping = EarlyStopping(monitor='val_loss', patience=10, verbose=1, mode='auto')
+
+            filename = "model_{epoch:02d}-{val_acc:.2f}.h5"
+            CHECK_POINT = os.path.join(CHECKPOINT_DIR, filename)
+            #使用CheckPoint来记录训练过程
+            checkpoint = ModelCheckpoint(
+                CHECK_POINT, monitor='val_acc', verbose=1, 
+                save_best_only=True, save_weights_only=False,
+                mode='auto',period=10
+                )
+            reducelr = ReduceLROnPlateau(
+                monitor='val_loss', factor=0.1, 
+                patience=10, verbose=0, mode='auto', 
+                epsilon=0.0001, cooldown=0, min_lr=0
+                )
+            
+            self.callbacks = [early_stopping, checkpoint, reducelr]
+
             #利用生成器开始训练模型
             hist = self.VGG_16.model.fit_generator(datagen.flow(self.train_image, self.train_label,
                                                    batch_size = self.batch_size),
                                      samples_per_epoch = self.train_image.shape[0],
                                      nb_epoch = self.nb_epoch,
                                      validation_data = (self.valid_image, self.valid_label),
-                                     callbacks=[
-                                         TensorBoard(log_dir='/home/kamerider/machine_learning/face_recognition/keras/log'),
-                                         early_stopping,
-                                         checkpoint])
+                                     callbacks=self.callbacks)
+            print (hist.history.keys())
             with open(HISTORY_PATH,'w') as f:
                 f.write(str(hist.history))
 
@@ -395,16 +424,19 @@ if __name__ == '__main__':
     if option == '-ShuffleSplit':
         MODEL_PATH = os.path.abspath(os.path.join(MODEL_PATH, "ShuffleSplit_model.h5"))
         train_vgg.train_with_SplitedData(dataset)
+        VGG_16.evaluate_model(dataset)
         VGG_16.save_model(MODEL_PATH)
     
     elif option == '-KFoldM':
         MODEL_PATH = os.path.abspath(os.path.join(MODEL_PATH, "KFold_Manual_model.h5"))
         train_vgg.train_with_CrossValidation_Manual(dataset)
+        VGG_16.evaluate_model(dataset)
         VGG_16.save_model(MODEL_PATH)
 
     elif option == '-KFoldW':
         MODEL_PATH = os.path.abspath(os.path.join(MODEL_PATH, "KFold_Wrapper_model.h5"))
         train_vgg.train_with_CrossValidation_Wrapper(dataset)
+        VGG_16.evaluate_model(dataset)
         VGG_16.save_model(MODEL_PATH)
 
     elif option == '-GridSearch':

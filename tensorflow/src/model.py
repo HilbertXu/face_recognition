@@ -13,10 +13,9 @@ from ops import *
 
 #input_op: 每一个batch输入网络的图像数据
 #keep_prob: drop_out 层中保留神经元链接的比例，在测试的时候赋值为1 
-def VGG(input_op, keep_prob):
+def VGG(input_op, keep_prob=0.5):
     #通过依次采用多个3x3的卷积核，模仿出更大的感受野的效果
     p=[]
-    
     #第一层卷积层用作输入层
     #此后经过卷积核逐渐增多的5次卷积
     conv1_1 = conv2d(input_op, name='conv1_1', output_dim=64, k_h=3, k_w=3, d_h=1, d_w=1, p=p)
@@ -51,12 +50,15 @@ def VGG(input_op, keep_prob):
 
     fc6 = fc_layer(flatten, name='fc6', output_shape=4096, p=p)
     fc6_drop = dropout(fc6, name='fc6_drop', keep_prob=keep_prob)
+
     fc7 = fc_layer(fc6_drop, name='fc7', output_shape=4096, p=p)
     fc7_drop = dropout(fc7, name='fc7_drop', keep_prob=keep_prob)
+    
     #最后一层全连接层需要将之前层的输出激活62个类别对应的62个神经元
     #故fc8的output_shape=62
     fc8 = fc_layer(fc7_drop, name='fc8', output_shape=62, p=p)
-    softmax = softmax(fc8, name='softmax')
+    softmax = softmax_layer(fc8, name='softmax')
     
     predicitions = tf.argmax(softmax, 1)
-    return predicitions, softmax, fc8, p
+
+    return predicitions, softmax, p

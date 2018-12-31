@@ -170,6 +170,9 @@ class Dataset:
         self.images = np.array(self.images)
         #self.labels =np_utils.to_categorical(self.labels, self.predefined_class)
         self.test_image = np.array(self.test_image)
+        #self.test_label = np.asarray(self.test_label, dtype=np.float32)
+        self.test_label = np_utils.to_categorical(self.test_label, self.predefined_class)
+        print (self.test_label.shape)
 
         print ('===========================')
         print ('||image array shape is : ||')
@@ -184,7 +187,7 @@ class Dataset:
         print ('===========================')
         print (self.test_image.shape)
         print ('===========================')    
-        print (self.test_label.shape)
+        #print (self.test_label.shape)
 
        
 if __name__ == '__main__':

@@ -87,3 +87,7 @@ for step in xrange(FLAGS.max_steps):
 简单来看 
 1. 使用tf.Variable()的时候，tf.name_scope()和tf.variable_scope() 都会给 Variable 和 op 的 name属性加上前缀。 
 2. 使用tf.get_variable()的时候，tf.name_scope()就不会给 tf.get_variable()创建出来的Variable加前缀。但是 tf.Variable() 创建出来的就会受到 name_scope 的影响.
+
+##迭代器访问Dataset
+使用iterator = dataset.make_initializable_iterator()的时候需要在使用迭代器之前先进行初始化
+即sess.run(iterator.initializer)

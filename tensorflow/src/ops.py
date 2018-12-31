@@ -29,18 +29,18 @@ def weight(
     dtype=tf.float32
     var = tf.get_variable(
         name, shape, tf.float32, trainable=trainable,
-        initializer_weight=initializer
+        initializer=initializer_weight
         )
     return var
 
 ##Relu激活层
 def relu(input_op, name='relu'):
-    with tf.variable_scope(name):
+    with tf.variable_scope(name, reuse=tf.AUTO_REUSE):
         return tf.nn.relu(input_op)
 
 #softmax分类输出层
-def softmax(intput_op, name='softmax'):
-    with tf.variable_scope(name):
+def softmax_layer(intput_op, name='softmax'):
+    with tf.variable_scope(name, reuse=tf.AUTO_REUSE):
         return tf.nn.softmax(intput_op)
 
 #Layers
@@ -53,7 +53,7 @@ y=γ(x-μ)/σ+β
 其中x是输入，y是输出，μ是均值，σ是方差，γ和β是缩放（scale）、偏移（offset）系数
 '''
 def batch_normal(input_op, name='batch_normal', is_train=True):
-    with tf.variable_scope(name) as scope:
+    with tf.variable_scope(name, reuse=tf.AUTO_REUSE) as scope:
         if is_train:
             return batch_norm(
                 input_op, decay=0.9, epsilon=1e-5, scale=True,
@@ -83,11 +83,11 @@ def conv2d(input_op, name, output_dim, k_h, k_w,
     '''
     if not with_bn:
         strides = [1, d_h, d_w, 1]
-        with tf.variable_scope(name):
+        with tf.variable_scope(name, reuse=tf.AUTO_REUSE):
 
             #见上方注释，此处实际上是使用之前定义的随机权重函数生成output_dim个权重随机的卷积核
             kernel = weight(
-                'kernel',
+                'kernel_w',
                 [k_h, k_w, input_op.get_shape()[-1], output_dim]
             ) #input_op.get_shape()[-1]为反向读取input_op的最后一个维度的大小
 
@@ -104,11 +104,11 @@ def conv2d(input_op, name, output_dim, k_h, k_w,
     else:
         #选择加入BN层的时候
         strides = [1, d_h, d_w, 1]
-        with tf.variable_scope(name):
+        with tf.variable_scope(name, reuse=tf.AUTO_REUSE):
 
             #见上方注释，此处实际上是使用之前定义的随机权重函数生成output_dim个权重随机的卷积核
             kernel = weight(
-                'kernel',
+                'kernel_w',
                 [k_h, k_w, input_op.get_shape()[-1], output_dim]
             ) #input_op.get_shape()[-1]为反向读取input_op的最后一个维度的大小
 
@@ -133,7 +133,7 @@ def fc_layer(input_op, name, output_shape, p):
     input_shape = input_op.get_shape()[-1].value
 
     #以下生成的所有variable都处于variabel_scope(name)中
-    with tf.variable_scope(name):
+    with tf.variable_scope(name, reuse=tf.AUTO_REUSE):
         kernel = weight(
             name+'_w', shape=[input_shape, output_shape], stddev=0.02,
             initializer_weight=tf.contrib.layers.xavier_initializer_conv2d()
@@ -157,7 +157,7 @@ def mpool_layer(input_op, name='max_pool', k_h=2, k_w=2, d_h=2, d_w=2):
     padding="SAME" 输出尺寸为W/S(其中W为输入尺寸,S为stride)
     padding="VALID" 输出尺寸为(W-F+1)/S(其中F为卷积核尺寸)
     '''
-    with tf.variable_scope(name):
+    with tf.variable_scope(name, reuse=tf.AUTO_REUSE):
         return tf.nn.max_pool(input_op, ksize=[1,k_h,k_w,1],
                                 strides=[1,d_h, d_w, 1],
                                 padding='SAME',
@@ -165,7 +165,7 @@ def mpool_layer(input_op, name='max_pool', k_h=2, k_w=2, d_h=2, d_w=2):
 
 #dropout层
 def dropout(input_op, name='dropout', keep_prob=0.7):
-    with tf.variable_scope(name):
+    with tf.variable_scope(name, reuse=tf.AUTO_REUSE):
         return tf.nn.dropout(input_op, keep_prob=keep_prob)
 
 
@@ -173,7 +173,7 @@ def dropout(input_op, name='dropout', keep_prob=0.7):
 def flatten_layer(input_op, name='flatten'):
     shape = input_op.get_shape()
     flatten_shape = shape[1].value * shape[2].value * shape[3].value
-    with tf.variable_scope(name):
+    with tf.variable_scope(name, reuse=tf.AUTO_REUSEw):
         return tf.reshape(input_op, [-1, flatten_shape], name=name)
 
 
@@ -193,6 +193,36 @@ def conv_cond_concat(input_op, name, cond):
     #按照第1维连接
     #tf.concat([t1, t2]，1) ==> [[1, 2, 3, 7, 8, 9], [4, 5, 6, 10, 11, 12]]
 
-    with tf.variable_scope(name):
+    with tf.variable_scope(name, reuse=tf.AUTO_REUSE):
         return tf.concat(
             [input_op, cond*tf.ones(input_op_shapes[0:3]+cond_shape[3:])], 3)
+
+
+#训练时使用的评估指标
+
+#损失函数
+def loss_op(logits, label_batches):
+    with tf.variable_scope('loss_op', reuse=tf.AUTO_REUSE):
+        cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits,labels=label_batches)
+        cost = tf.reduce_mean(cross_entropy)
+        return cost
+
+#评价分类精确度函数
+def accuracy_op(logits, labels):
+    '''
+    tf.nn.in_top_k(predictions, targets, k, name=None)
+        predictions：预测的结果，预测矩阵大小为样本数×标注的label类的个数的二维矩阵。
+        targets：实际的标签，大小为样本数。
+        k：每个样本的预测结果的前k个最大的数里面是否包含targets预测中的标签，一般都是取1，即取预测最大概率的索引与标签对比。
+    '''
+    with tf.variable_scope('accuracy_op', reuse=tf.AUTO_REUSE):
+        acc = tf.nn.in_top_k(logits, labels, 1)
+        acc = tf.cast(acc, tf.float32)
+        acc = tf.reduce_mean(acc)
+        return acc
+
+#训练时的优化器
+def AdamOptimizer(loss, learning_rate=1e-4):
+    with tf.variable_scope('Adam', reuse=tf.AUTO_REUSE):
+        optimizer = tf.train.AdamOptimizer(learning_rate).minimize(loss)
+        return optimizer

@@ -16,16 +16,23 @@ from tensorflow.python.framework import dtypes
 from tensorflow.python.framework.ops import convert_to_tensor
 from tensorflow.data import Dataset
 
-from utils import clock, resize_image, Bubble_Sort, Get_ID
+from utils import clock, resize_image, Bubble_Sort, Get_ID, little_trick
 
+'''
 DATABASE = '/home/kamerider/Documents/DataBase'
 TESTDATA_DIR = '/home/kamerider/Documents/TestData'
 TRAIN_DATA_DIR = '/home/kamerider/Documents/Dataset_TF/dataset_train'
 VALID_DATA_DIR = '/home/kamerider/Documents/Dataset_TF/dataset_valid'
 TFRECORD_DIR = '../TFRecords'
+'''
 
 
-#TESTDATA_DIR = '/home/kamerider/Documents/small_test'
+#TESTDATA_DIRs
+DATABASE = '/home/kamerider/Documents/small_dataset'
+TESTDATA_DIR = '/home/kamerider/Documents/small_test'
+TRAIN_DATA_DIR = '/home/kamerider/Documents/Dataset_TF_test/dataset_train'
+VALID_DATA_DIR = '/home/kamerider/Documents/Dataset_TF_test/dataset_valid'
+TFRECORD_DIR = '../TFRecords'
 
 
 IMAG_SIZE = 64
@@ -133,12 +140,17 @@ def find_train_image(train_path):
                 folder_path = os.path.abspath(os.path.join(full_path, "../"))
                 upper_folder_path = os.path.abspath(os.path.dirname(folder_path))
                 curr_id = int(Get_ID(folder_path, upper_folder_path))
+
                 for i in range(len(order_sheet)):
                     temp = curr_id - minimun_id
                     if temp == order_sheet[i]:
                         onehot_id = i
+
                 if is_visited == True:
                     print ("[INFO] student id: %d ----> one_hot label: %d"%(curr_id, onehot_id))
+                    #uncomment to see the little trick
+                    #if curr_id == 1611472:
+                        #little_trick()
                     is_visited = False
                 train_image_paths.append(full_path)
                 train_labels.append(onehot_id)
@@ -207,12 +219,15 @@ def write_path_to_txt(image_path, label, name):
 
 def extract_image(filename):
     image = cv2.cvtColor (
-                        resize_image(cv2.imread(filename)), cv2.COLOR_BGR2RGB
+                        cv2.imread(filename), cv2.COLOR_BGR2RGB
                     )
-    return image
+    return image.tostring(), image.shape[0], image.shape[1], image.shape[2]
 
 def generate_tfrecord_file():
     #先判断目标文件夹是否存在，不存在的话创建文件夹
+
+    print ("[INFO] Writing train data to %s"%("train.tfrecords"))
+
     DES_DIR = os.path.abspath(os.path.join(os.getcwd(), TFRECORD_DIR))
     if not os.path.exists(DES_DIR):
         os.makedirs(DES_DIR)
@@ -222,13 +237,17 @@ def generate_tfrecord_file():
     with tf.python_io.TFRecordWriter(train_filename) as tfrecord_writer:
         for i in range(len(train_labels)):
             #使用tf.gfile.FastGFile()读取图片文件
-            image_raw = tf.gfile.FastGFile(train_image_paths[i], 'rb').read()
+            #tf.gfile.FastGFile()与opencv相比并没有读写速度上的优势，其优势在于可以直接读取远程服务器上的文件
+            image_raw, height, width, channels = extract_image(train_image_paths[i])
             label = train_labels[i]
 
             #create features dict
             features = {
                 'image_raw': _bytes_feature(image_raw),
-                'label': _int64_feature(label)
+                'label': _int64_feature(label),
+                'height': _int64_feature(height),
+                'width': _int64_feature(width),
+                'channels': _int64_feature(channels)
             }
             #将所有的feature和成为一整个features
             tf_features = tf.train.Features(feature=features)
@@ -242,18 +261,23 @@ def generate_tfrecord_file():
             tfrecord_writer.write(tf_serialized)
     tfrecord_writer.close()
 
+
+    print ("[INFO] Writing valid data to %s"%("valid.tfrecords"))
     #记录验证集数据
     valid_filename = os.path.abspath(os.path.join(TFRECORD_DIR, "valid.tfrecords"))
     with tf.python_io.TFRecordWriter(valid_filename) as tfrecord_writer:
         for i in range(len(valid_labels)):
             #使用tf.gfile.FastGFile()读取图片文件
-            image_raw = tf.gfile.FastGFile(valid_image_paths[i], 'rb').read()
+            image_raw, height, width, channels = extract_image(valid_image_paths[i])
             label = valid_labels[i]
 
             #create features dict
             features = {
                 'image_raw': _bytes_feature(image_raw),
-                'label': _int64_feature(label)
+                'label': _int64_feature(label),
+                'height': _int64_feature(height),
+                'width': _int64_feature(width),
+                'channels': _int64_feature(channels)
             }
             #将所有的feature和成为一整个features
             tf_features = tf.train.Features(feature=features)

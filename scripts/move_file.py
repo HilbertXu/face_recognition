@@ -20,13 +20,13 @@ ERROR_DIR = ''
 TEMP_DIR = '/home/kamerider/temp'
 
 
-FROM_DIR = '/home/kamerider/Documents/DataBase'
-TARGET_DATASET = '/home/kamerider/Documents/Dataset_TF'
+FROM_DIR = '/home/kamerider/Documents/small_dataset'
+TARGET_DATASET = '/home/kamerider/Documents/Dataset_TF_test'
 #最终要求的数据集储存方式
 #TRAIN_DIR/1611xxx/images(700 pics)
 #VALID_DIR/1611xxx/images(300 pics)
-TRAIN_DIR = '/home/kamerider/Documents/Dataset_TF/train_data'
-VALID_DIR = '/home/kamerider/Documents/Dataset_TF/valid_data'
+TRAIN_DIR = '/home/kamerider/Documents/Dataset_TF_test/train_data'
+VALID_DIR = '/home/kamerider/Documents/Dataset_TF_test/valid_data'
 
 
 labels=[]
@@ -93,7 +93,7 @@ def read_image():
             print("Create /dataset_train and /dataset_valid in %s"%(TARGET_DATASET))
             os.chdir(TARGET_DATASET)
             os.mkdir('dataset_train')
-            os.mkdir('dataset_test')
+            os.mkdir('dataset_valid')
             os.chdir(current_path)
         #在dataset_train & dataset_test下建立以每个学号命名的文件夹
         if not os.path.exists(os.path.abspath(os.path.join(train_path,label))) or not os.path.exists(os.path.abspath(os.path.join(valid_path,label))):

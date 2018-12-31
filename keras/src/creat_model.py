@@ -64,6 +64,7 @@ class Model:
 
         #Uncomment to use BN Layer during training
         #self.model.add(BatchNormalization(epsilon=1e-06, mode=0, axis=-1, momentum=0.9, weights=None, beta_init='zero', gamma_init='one'))
+
         self.model.add(MaxPooling2D(pool_size=(2, 2)))
         self.model.add(Dropout(0.25))
 
@@ -174,6 +175,11 @@ class Model:
                            metrics=['accuracy'])   #完成实际的模型配置工作
 
         return self.model
+
+    def evaluate_model(self, dataset):
+        print (self.model.metrics_names)
+        self.model.evaluate(dataset.test_image, dataset.test_label, batch_size=64, verbose=1)
+
 
     def save_model(self, file_path):
         self.model.save(file_path)
