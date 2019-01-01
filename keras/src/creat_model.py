@@ -176,9 +176,9 @@ class Model:
 
         return self.model
 
-    def evaluate_model(self, dataset):
-        print (self.model.metrics_names)
-        self.model.evaluate(dataset.test_image, dataset.test_label, batch_size=64, verbose=1)
+    def evaluate_model(self, test_images, test_labels):
+        scores = self.model.evaluate(test_images, test_labels, verbose=1)
+        print("%s: %.2f%%" % (self.model.metrics_names[1], scores[1] * 100))
 
 
     def save_model(self, file_path):

@@ -13,7 +13,6 @@ import os
 import sys
 import numpy as np
 import cv2
-import matplotlib.pyplot as plt
 from sklearn.utils import shuffle
 from sklearn.model_selection import StratifiedKFold
 from sklearn.model_selection import StratifiedShuffleSplit
@@ -44,7 +43,7 @@ from keras.callbacks import ReduceLROnPlateau
 from keras.wrappers.scikit_learn import KerasClassifier
 
 
-
+from utils import *
 from load_data import Dataset
 from creat_model import Model
 
@@ -52,8 +51,6 @@ from creat_model import Model
 #DATABASE_ROOT_DIR = '/home/kamerider/Documents/small_dataset'
 DATABASE_ROOT_DIR = '/home/kamerider/Documents/DataBase'
 MODEL_PATH = '/home/kamerider/machine_learning/face_recognition/keras/model/'
-HISTORY_PATH = '/home/kamerider/machine_learning/face_recognition/keras/History/Train_History.txt'
-FIGURE_PATH = '/home/kamerider/machine_learning/face_recognition/keras/History'
 CHECKPOINT_DIR = '/home/kamerider/machine_learning/face_recognition/keras/checkpoint'
 
 def print_usage(program_name):
@@ -145,6 +142,9 @@ class Train:
             #val_loss是否不再下降，也可以防止过拟合现象
             early_stopping = EarlyStopping(monitor='val_loss', patience=10, verbose=1, mode='auto')
 
+            CHECKPOINT_DIR = os.path.abspath(os.path.join(CHECKPOINT_DIR, "ShuffleSplit"))
+            if not os.path.exists(CHECKPOINT_DIR):
+                os.makedirs(CHECKPOINT_DIR)
             filename = "model_{epoch:02d}-{val_acc:.2f}.h5"
             CHECK_POINT = os.path.join(CHECKPOINT_DIR, filename)
             #使用CheckPoint来记录训练过程
@@ -153,6 +153,7 @@ class Train:
                 save_best_only=True, save_weights_only=False,
                 mode='auto',period=10
                 )
+            #使用ReduceLROnPlateau在val_loss不再下降的时候降低学习率
             reducelr = ReduceLROnPlateau(
                 monitor='val_loss', factor=0.1, 
                 patience=10, verbose=0, mode='auto', 
@@ -172,41 +173,8 @@ class Train:
                            #验证集是用来在训练过程中优化参数的，可以直接使用validation_split从训练集中划分出来
                            shuffle = True,
                            callbacks=self.callbacks)
-            print (hist.history.keys())
-            with open(HISTORY_PATH,'w') as f:
-                f.write(str(hist.history))
-
-            #visualization
-            #store the output history
-            model_val_loss = hist.history['val_loss']
-            model_val_acc  = hist.history['val_acc']
-            model_loss     = hist.history['loss']
-            model_acc      = hist.history['acc']
-
-            #Using matplotlib to visualize
-            epochs = np.arange(self.nb_epoch)+1
-            plt.figure()
-            plt.plot(epochs, model_val_loss, label = 'model_val_loss')
-            plt.plot(epochs, model_loss, label = 'model_loss')
-            plt.title('visualize the training process')
-            plt.xlabel('Epoch #')
-            plt.ylabel('Validation Loss & Train Loss')
-            plt.legend()
-            plt.savefig(FIGURE_PATH+'/loss_figure.png')
-            plt.show()
-
-            plt.figure()
-            plt.plot(epochs, model_val_acc, label = 'model_val_acc')
-            plt.plot(epochs, model_acc, label = 'model_acc')
-            plt.title('visualize the training process')
-            plt.xlabel('Epoch #')
-            plt.ylabel('Validation accuracy & Train accuracy')
-            plt.legend()
-            plt.savefig(FIGURE_PATH+'/acc_figure.png')
-            plt.show()
-
-            self.VGG_16.model.evaluate(self.test_image, self.test_label, verbose=1)
-            print("%s: %.2f%%" % (self.VGG_16.model.metrics_names[1], score[1] * 100))
+            #记录训练数据并可视化
+            visualization(hist, self.nb_epoch)
 
         #使用实时数据提升
         else:
@@ -232,6 +200,9 @@ class Train:
             #val_loss是否不再下降，也可以防止过拟合现象
             early_stopping = EarlyStopping(monitor='val_loss', patience=10, verbose=1, mode='auto')
 
+            CHECKPOINT_DIR = os.path.abspath(os.path.join(CHECKPOINT_DIR, "ShuffleSplit_augmentation"))
+            if not os.path.exists(CHECKPOINT_DIR):
+                os.makedirs(CHECKPOINT_DIR)
             filename = "model_{epoch:02d}-{val_acc:.2f}.h5"
             CHECK_POINT = os.path.join(CHECKPOINT_DIR, filename)
             #使用CheckPoint来记录训练过程
@@ -240,6 +211,7 @@ class Train:
                 save_best_only=True, save_weights_only=False,
                 mode='auto',period=10
                 )
+            #使用ReduceLROnPlateau在val_loss不再下降的时候降低学习率
             reducelr = ReduceLROnPlateau(
                 monitor='val_loss', factor=0.1, 
                 patience=10, verbose=0, mode='auto', 
@@ -255,41 +227,8 @@ class Train:
                                      nb_epoch = self.nb_epoch,
                                      validation_data = (self.valid_image, self.valid_label),
                                      callbacks=self.callbacks)
-            print (hist.history.keys())
-            with open(HISTORY_PATH,'w') as f:
-                f.write(str(hist.history))
-
-            #visualization
-            #store the output history
-            model_val_loss = hist.history['val_loss']
-            model_val_acc  = hist.history['val_acc']
-            model_loss     = hist.history['loss']
-            model_acc      = hist.history['acc']
-
-            #Using matplotlib to visualize
-            epochs = np.arange(self.nb_epoch)+1
-            plt.figure()
-            plt.plot(epochs, model_val_loss, label = 'model_val_loss')
-            plt.plot(epochs, model_loss, label = 'model_loss')
-            plt.title('visualize the training process')
-            plt.xlabel('Epoch #')
-            plt.ylabel('Validation Loss & Train Loss')
-            plt.legend()
-            plt.savefig(FIGURE_PATH+'/loss_figure.png')
-            plt.show()
-
-            plt.figure()
-            plt.plot(epochs, model_val_acc, label = 'model_val_acc')
-            plt.plot(epochs, model_acc, label = 'model_acc')
-            plt.title('visualize the training process')
-            plt.xlabel('Epoch #')
-            plt.ylabel('Validation accuracy & Train accuracy')
-            plt.legend()
-            plt.savefig(FIGURE_PATH+'/acc_figure.png')
-            plt.show()
-
-            self.VGG_16.model.evaluate(self.test_image, self.test_label, verbose=1)
-            print("%s: %.2f%%" % (self.VGG_16.model.metrics_names[1], score[1] * 100))
+            visualization(hist, self.nb_epoch)
+            
 
     
     #Using KFold Cross Validate
@@ -302,6 +241,29 @@ class Train:
             self.train_with_CrossValidation(dataset)
             '''
             #and comment the following lines
+            #define callback funcs
+            #在使用ShuffleSplit划分训练集的时候使用EarlyStopping来检测
+            #val_loss是否不再下降，也可以防止过拟合现象
+            early_stopping = EarlyStopping(monitor='val_loss', patience=10, verbose=1, mode='auto')
+            
+            CHECKPOINT_DIR = os.path.abspath(os.path.join(CHECKPOINT_DIR, "KFold_manual"))
+            if not os.path.exists(CHECKPOINT_DIR):
+                os.makedirs(CHECKPOINT_DIR)
+            filename = "model_{epoch:02d}-{val_acc:.2f}.h5"
+            #使用CheckPoint来记录训练过程
+            checkpoint = ModelCheckpoint(
+                CHECK_POINT, monitor='val_acc', verbose=1, 
+                save_best_only=True, save_weights_only=False,
+                mode='auto',period=10
+                )
+            #使用ReduceLROnPlateau在val_loss不再下降的时候降低学习率
+            reducelr = ReduceLROnPlateau(
+                monitor='val_loss', factor=0.1, 
+                patience=10, verbose=0, mode='auto', 
+                epsilon=0.0001, cooldown=0, min_lr=0
+                )
+            
+            self.callbacks = [early_stopping, checkpoint, reducelr]
 
             #默认使用人工划分交叉验证，并使用每次划分出来的数据进行训练和验证
             #采用KFold方法划分训练集
@@ -315,6 +277,13 @@ class Train:
             Cross_Validate_Scores=[]
             num = 1 
             for train_idx, valid_idx in self.kfold.split(dataset.images, dataset.labels):
+                #每一个fold的checkpoint放在一个文件夹中
+                foldername = "Fold_"+str(num)
+                CHECKPOINT_DIR = os.path.abspath(os.path.join(CHECK_POINT, foldername))\
+                if not os.path.exists(CHECKPOINT_DIR):
+                    os.makedirs(CHECKPOINT_DIR)
+                CHECK_POINT = os.path.join(CHECKPOINT_DIR, filename)
+
                 print ("\033[0;31;40mFold %d/10 start\033[0m"%(num))
                 num +=1 
                 self.train_image = dataset.images[train_idx]
@@ -338,11 +307,15 @@ class Train:
                            metrics=['accuracy'])   #完成实际的模型配置工作
 
                 hist = self.VGG_16.model.fit(
-                    self.train_image, self.train_label,
-                    nb_epoch=self.nb_epoch,
-                    batch_size=self.batch_size,
-                    verbose=1
-                )
+                    self.train_image,self.train_label,
+                    batch_size = self.batch_size,
+                    nb_epoch = self.nb_epoch,
+                    #validation_split = 0.33,
+                    validation_data=(self.valid_image, self.valid_label),
+                    #验证集是用来在训练过程中优化参数的，可以直接使用validation_split从训练集中划分出来
+                    shuffle = True,
+                    callbacks=self.callbacks
+                    )
                 self.loss.extend(hist.history['loss'])
                 self.acc.extend(hist.history['acc'])
                 scores = self.VGG_16.model.evaluate(self.test_image, self.test_label, verbose=1)
@@ -416,6 +389,7 @@ if __name__ == '__main__':
 
     '''
     ==================================================================
+    @TODO
     从控制台读取训练参数(options, batch_size, nb_epoch, data_augmentation)
     ==================================================================
     '''
@@ -424,19 +398,17 @@ if __name__ == '__main__':
     if option == '-ShuffleSplit':
         MODEL_PATH = os.path.abspath(os.path.join(MODEL_PATH, "ShuffleSplit_model.h5"))
         train_vgg.train_with_SplitedData(dataset)
-        VGG_16.evaluate_model(dataset)
+        VGG_16.evaluate_model(train_vgg.test_image, train_vgg.test_label)
         VGG_16.save_model(MODEL_PATH)
     
     elif option == '-KFoldM':
         MODEL_PATH = os.path.abspath(os.path.join(MODEL_PATH, "KFold_Manual_model.h5"))
         train_vgg.train_with_CrossValidation_Manual(dataset)
-        VGG_16.evaluate_model(dataset)
         VGG_16.save_model(MODEL_PATH)
 
     elif option == '-KFoldW':
         MODEL_PATH = os.path.abspath(os.path.join(MODEL_PATH, "KFold_Wrapper_model.h5"))
         train_vgg.train_with_CrossValidation_Wrapper(dataset)
-        VGG_16.evaluate_model(dataset)
         VGG_16.save_model(MODEL_PATH)
 
     elif option == '-GridSearch':

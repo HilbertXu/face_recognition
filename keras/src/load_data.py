@@ -168,10 +168,7 @@ class Dataset:
         self.Test_Data(TESTDATA_DIR)
 
         self.images = np.array(self.images)
-        #self.labels =np_utils.to_categorical(self.labels, self.predefined_class)
         self.test_image = np.array(self.test_image)
-        #self.test_label = np.asarray(self.test_label, dtype=np.float32)
-        self.test_label = np_utils.to_categorical(self.test_label, self.predefined_class)
         print (self.test_label.shape)
 
         print ('===========================')
