@@ -149,7 +149,7 @@ def find_train_image(train_path):
 
                 if is_visited == True:
                     print ("[INFO] student id: %d ----> one_hot label: %d"%(curr_id, onehot_id))
-                    #uncomment to see the little trick
+                    #uncomment to show the little trick
                     #if curr_id == 1611472:
                         #little_trick()
                     is_visited = False
@@ -220,7 +220,7 @@ def write_path_to_txt(image_path, label, name):
 
 def extract_image(filename):
     image = cv2.cvtColor (
-                        cv2.imread(filename), cv2.COLOR_BGR2RGB
+                        resize_image(cv2.imread(filename)), cv2.COLOR_BGR2RGB
                     )
     return image.tostring(), image.shape[0], image.shape[1], image.shape[2]
 

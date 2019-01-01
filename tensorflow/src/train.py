@@ -20,7 +20,7 @@ from load_data import load_data_main, RGB_MEAN
 from model import VGG
 from ops import loss_op, accuracy_op, AdamOptimizer
 from utils import *
-from vgg_preprocessing import *
+from image_preprocess import *
 from tqdm import tqdm
 
 TFRECORD_DIR = '/home/kamerider/machine_learning/face_recognition/tensorflow/TFRecords'
@@ -35,8 +35,11 @@ valid_batch_num=0
 class_num=0
 
 BATCH_SIZE=64
-NUM_EPOCHES=100
+NUM_EPOCHES=200
 IMAGE_SIZE=64
+
+lrate = [0.001, 0.0005, 0.0001]
+change_epoch = [20, 50]
 
 def check_dataset():
 	train_tfrecord_path = os.path.abspath(os.path.join(TFRECORD_DIR, "train.tfrecords"))
@@ -85,6 +88,11 @@ def _parse_tfrecord(example_proto):
 	而 shape 参数也是从 TFRecord 文件中获取时，要加 tf.stack 操作: image = tf.reshape(image, tf.stack([height, width, channels]))
 	'''
 	image_decoded = tf.reshape(image_decoded, tf.stack([height, width, channels]))
+	#数据增强
+	image_decoded = tf.image.random_flip_left_right(image_decoded)
+	#图像归一化
+	image_decoded = tf.cast(image_decoded, tf.float32)/255.0
+
 	#处理图像对应的标签，将其转化为one-hot code
 	label = tf.cast(label, tf.int32)
 	label = tf.one_hot(label, depth=class_num, on_value=1)
@@ -107,8 +115,9 @@ def read_train_valid_tfrecord():
 	#由于在下面使用了for循环来控制epoch，所以不再需要repeat操作
 	#dataset_train = dataset_train.repeat(NUM_EPOCHES)
 	#使用双线程调用解析函数来解析储存在dataset_train中的proto_example
+
 	dataset_train = dataset_train.map(_parse_tfrecord)
-	dataset_train = dataset_train.map(lambda image, label:(preprocess_image(image, IMAGE_SIZE, IMAGE_SIZE, is_training=True), label), num_parallel_calls=2)
+	#dataset_train = dataset_train.map(lambda image, label:(image_preprocess(image, IMAGE_SIZE, IMAGE_SIZE), label), num_parallel_calls=2)
 	dataset_train = dataset_train.batch(BATCH_SIZE, drop_remainder=True)
 	dataset_train = dataset_train.prefetch(5)
 	#train_iterator = dataset_train.make_initializable_iterator()
@@ -117,7 +126,7 @@ def read_train_valid_tfrecord():
 	# 创建 validation dataset 和对应的迭代器
 	dataset_valid = tf.data.TFRecordDataset(valid_file_path)
 	dataset_valid = dataset_valid.map(_parse_tfrecord)
-	dataset_valid = dataset_valid.map(lambda image, label: (preprocess_image(image, IMAGE_SIZE, IMAGE_SIZE, is_training=False), label), num_parallel_calls=2)
+	#dataset_valid = dataset_valid.map(lambda image, label: (image_preprocess(image, IMAGE_SIZE, IMAGE_SIZE), label), num_parallel_calls=2)
 	dataset_valid = dataset_valid.batch(BATCH_SIZE, drop_remainder=True)
 	#valid_iterator = dataset_valid.make_initializable_iterator()
 
@@ -144,9 +153,10 @@ def run_vgg_training():
 	#使用占位符表示每个batch输入网络的图片和标签
 	x_train = tf.placeholder(tf.float32, [BATCH_SIZE, 64, 64, 3])
 	y_train = tf.placeholder(tf.float32, [BATCH_SIZE, class_num])
+	learning_rate = tf.placeholder(tf.float32)
 	predicts, logits, _ = VGG(x_train, class_num=class_num)
 	cost = loss_op(logits, y_train)
-	optimizer = AdamOptimizer(cost,0.001)
+	optimizer = AdamOptimizer(cost,learning_rate=learning_rate)
 	accuracy = accuracy_op(predicts, y_train)
 
 	#网络验证部分
@@ -184,18 +194,28 @@ def run_vgg_training():
 			train_batch_count = 1
 			valid_batch_count = 1
 			print("[TRAINING...（¯﹃¯）] Start training {}/{} epoch at time: {}".format(epoch+1, NUM_EPOCHES, datetime.now()))
+
+			#学习率调整
+			if 0 <= epoch <= change_epoch[0]:
+				rate = lrate[0]
+			elif change_epoch[0] <= epoch <= change_epoch[1]:
+				rate = lrate[1] 
+			else:
+				rate = lrate[2]
 			
 			#使用feed_dict将生成的每一个batch数据输入网络进行训练
 			while True:		
 				try:
 					train_image_batch, train_label_batch = sess.run(train_batch)
 					#注意左侧变量不能与右侧图运算的变量重名，否则会改变图变量的类型，使得计算不能继续
-					loss, optimizer_, acc = sess.run(
+					loss, _, acc = sess.run(
 						[cost, optimizer, accuracy],
 						feed_dict={
 							x_train: train_image_batch,
-							y_train: train_label_batch
+							y_train: train_label_batch,
+							learning_rate: rate
 						})
+						
 					epoch_loss += loss
 					epoch_acc += acc
 					train_batch_count+=1

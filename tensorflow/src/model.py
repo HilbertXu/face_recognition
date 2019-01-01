@@ -62,3 +62,8 @@ def VGG(input_op, keep_prob=0.5, class_num=62):
     predicitions = tf.argmax(softmax, 1)
 
     return predicitions, softmax, p
+
+def save_model(sess, save_path):
+    with tf.name_scope("saver"):
+        saver =  tf.train.Saver()
+        saver.save(sess, save_model)
