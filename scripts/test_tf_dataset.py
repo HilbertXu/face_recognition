@@ -127,16 +127,23 @@ def test_batch():
     dataset = tf.data.Dataset.from_tensor_slices(test)
     dataset = dataset.repeat(2)
     dataset = dataset.shuffle(3)
-    dataset = dataset.batch(2)
+    dataset = dataset.batch(3)
     dataset = dataset.prefetch(5)
-    iterator = dataset.make_one_shot_iterator()
-    for i in range(3):
-        with tf.Session() as sess:
+    #iterator = dataset.make_one_shot_iterator()
+    iterator = dataset.make_initializable_iterator()
+    
+    
+    with tf.Session() as sess:
+        for epoch in range(2):
+            batch_num = 1
+            sess.run(iterator.initializer)
             while True:
                 try:
                     #sess.run(iterator.initializer)
                     one_batch = sess.run(iterator.get_next())
                     print (one_batch)
+                    print ("Batch number is: %d"%(batch_num))
+                    batch_num +=1
                 except tf.errors.OutOfRangeError:
                     print("end!")
                     break
@@ -154,5 +161,5 @@ def test_batch():
 
 
 if __name__ == '__main__':
-    test_tfrecord()
+    #test_tfrecord()
     test_batch()

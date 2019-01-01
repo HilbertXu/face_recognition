@@ -22,8 +22,8 @@ def bias(name, shape, bias_start=0.0, trainable=True):
 
 #随机权重
 def weight(
-    name, shape, stddev=0.03, trainable=True, 
-    initializer_weight=tf.random_normal_initializer(stddev=0.03, dtype=tf.float32)
+    name, shape, trainable=True, 
+    initializer_weight=tf.contrib.layers.xavier_initializer_conv2d()
     ):
 
     dtype=tf.float32
@@ -135,7 +135,7 @@ def fc_layer(input_op, name, output_shape, p):
     #以下生成的所有variable都处于variabel_scope(name)中
     with tf.variable_scope(name, reuse=tf.AUTO_REUSE):
         kernel = weight(
-            name+'_w', shape=[input_shape, output_shape], stddev=0.02,
+            name+'_w', shape=[input_shape, output_shape], 
             initializer_weight=tf.contrib.layers.xavier_initializer_conv2d()
             )
         biases  = bias ('biases', [output_shape], 0.1)
@@ -173,7 +173,7 @@ def dropout(input_op, name='dropout', keep_prob=0.7):
 def flatten_layer(input_op, name='flatten'):
     shape = input_op.get_shape()
     flatten_shape = shape[1].value * shape[2].value * shape[3].value
-    with tf.variable_scope(name, reuse=tf.AUTO_REUSEw):
+    with tf.variable_scope(name, reuse=tf.AUTO_REUSE):
         return tf.reshape(input_op, [-1, flatten_shape], name=name)
 
 
@@ -202,8 +202,23 @@ def conv_cond_concat(input_op, name, cond):
 
 #损失函数
 def loss_op(logits, label_batches):
+    '''
+    tf.nn.softmax_cross_entropy_with_logits(记为f1) 和 
+    tf.nn.sparse_softmax_cross_entropy_with_logits(记为f3),以及 
+    tf.nn.softmax_cross_entropy_with_logits_v2(记为f2) 
+    之间的区别。
+
+    f1和f3对于参数logits的要求都是一样的，即未经处理的，直接由神经网络输出的数值， 
+    比如 [3.5,2.1,7.89,4.4]。两个函数不一样的地方在于labels格式的要求，f1的要求labels的格式和logits类似，比如[0,0,1,0]。
+    而f3的要求labels是一个数值，这个数值记录着ground truth所在的索引。以[0,0,1,0]为例，这里真值1的索引为2。
+    所以f3要求labels的输入为数字2(tensor)。一般可以用tf.argmax()来从[0,0,1,0]中取得真值的索引。
+
+    f1和f2之间很像，实际上官方文档已经标记出f1已经是deprecated 状态，推荐使用f2。
+    两者唯一的区别在于f1在进行反向传播的时候，只对logits进行反向传播，labels保持不变。而f2在进行反向传播的时候，
+    同时对logits和labels都进行反向传播，如果将labels传入的tensor设置为stop_gradients，就和f1一样了。 
+    '''
     with tf.variable_scope('loss_op', reuse=tf.AUTO_REUSE):
-        cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits,labels=label_batches)
+        cross_entropy = tf.nn.softmax_cross_entropy_with_logits_v2(logits=logits,labels=label_batches)
         cost = tf.reduce_mean(cross_entropy)
         return cost
 
@@ -211,12 +226,14 @@ def loss_op(logits, label_batches):
 def accuracy_op(logits, labels):
     '''
     tf.nn.in_top_k(predictions, targets, k, name=None)
+        ! 该函数应该搭配使用的标签是index即数组下标型, 数据类型应该为int32
+        ! 若使用one-hot编码，数据类型应该是float32
         predictions：预测的结果，预测矩阵大小为样本数×标注的label类的个数的二维矩阵。
         targets：实际的标签，大小为样本数。
         k：每个样本的预测结果的前k个最大的数里面是否包含targets预测中的标签，一般都是取1，即取预测最大概率的索引与标签对比。
     '''
     with tf.variable_scope('accuracy_op', reuse=tf.AUTO_REUSE):
-        acc = tf.nn.in_top_k(logits, labels, 1)
+        acc = tf.equal(logits, tf.argmax(labels, 1))
         acc = tf.cast(acc, tf.float32)
         acc = tf.reduce_mean(acc)
         return acc

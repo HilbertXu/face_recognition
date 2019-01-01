@@ -21,6 +21,7 @@ from model import VGG
 from ops import loss_op, accuracy_op, AdamOptimizer
 from utils import *
 from vgg_preprocessing import *
+from tqdm import tqdm
 
 TFRECORD_DIR = '/home/kamerider/machine_learning/face_recognition/tensorflow/TFRecords'
 filewriter_path = "/home/kamerider/machine_learning/face_recognition/tensorflow/tensorboard"  # 存储tensorboard文件
@@ -28,6 +29,9 @@ checkpoint_path = "/home/kamerider/machine_learning/face_recognition/tensorflow/
 
 train_data_size=0
 valid_data_size=0
+
+train_batch_num=0
+valid_batch_num=0
 class_num=0
 
 BATCH_SIZE=64
@@ -44,6 +48,8 @@ def check_dataset():
 		with open(os.path.abspath(os.path.join(TFRECORD_DIR, "train.txt")), 'r') as f:
 			global train_data_size
 			train_data_size = int(f.readline())
+			global train_batch_num
+			train_batch_num = int(train_data_size/BATCH_SIZE)
 			global class_num
 			class_num = int(f.readline())
 		f.close()
@@ -51,6 +57,8 @@ def check_dataset():
 		with open(os.path.abspath(os.path.join(TFRECORD_DIR, "valid.txt")), 'r') as f:
 			global valid_data_size
 			valid_data_size = int(f.readline())
+			global valid_batch_num
+			valid_batch_num = int(valid_data_size/BATCH_SIZE)
 		f.close()
 	return train_data_size, valid_data_size
 
@@ -79,12 +87,7 @@ def _parse_tfrecord(example_proto):
 	image_decoded = tf.reshape(image_decoded, tf.stack([height, width, channels]))
 	#处理图像对应的标签，将其转化为one-hot code
 	label = tf.cast(label, tf.int32)
-	'''
-	#需要的标签应该是正确类别的索引，而不是one-hot码
-	@TODO
-	这一点非常困惑
-	#label = tf.one_hot(label, depth=class_num, on_value=1)
-	'''
+	label = tf.one_hot(label, depth=class_num, on_value=1)
 
 	return image_decoded, label
 
@@ -106,9 +109,8 @@ def read_train_valid_tfrecord():
 	#使用双线程调用解析函数来解析储存在dataset_train中的proto_example
 	dataset_train = dataset_train.map(_parse_tfrecord)
 	dataset_train = dataset_train.map(lambda image, label:(preprocess_image(image, IMAGE_SIZE, IMAGE_SIZE, is_training=True), label), num_parallel_calls=2)
-	dataset_train = dataset_train.batch(BATCH_SIZE)
+	dataset_train = dataset_train.batch(BATCH_SIZE, drop_remainder=True)
 	dataset_train = dataset_train.prefetch(5)
-	train_iterator = dataset_train.make_one_shot_iterator()
 	#train_iterator = dataset_train.make_initializable_iterator()
 	print ("Batch_Size is: %d"%(BATCH_SIZE))
 
@@ -116,107 +118,120 @@ def read_train_valid_tfrecord():
 	dataset_valid = tf.data.TFRecordDataset(valid_file_path)
 	dataset_valid = dataset_valid.map(_parse_tfrecord)
 	dataset_valid = dataset_valid.map(lambda image, label: (preprocess_image(image, IMAGE_SIZE, IMAGE_SIZE, is_training=False), label), num_parallel_calls=2)
-	dataset_valid = dataset_valid.batch(BATCH_SIZE)
-	valid_iterator = dataset_valid.make_one_shot_iterator()
+	dataset_valid = dataset_valid.batch(BATCH_SIZE, drop_remainder=True)
 	#valid_iterator = dataset_valid.make_initializable_iterator()
 
-	return train_iterator, valid_iterator
+	return dataset_train, dataset_valid
 
-def batch_data_generator(train_iterator, valid_iterator, is_train=True):
-	#生成用于训练的迭代器
-	if is_train:
-		train_image_batch, train_label_batch = train_iterator.get_next()
-		return train_image_batch, train_label_batch
-	else:
-		valid_image_batch, valid_label_batch = valid_iterator.get_next()
-
-		return valid_image_batch, valid_label_batch
-
-	
 def run_vgg_training():
 	#训练阶段
 	train_data_size, valid_data_size = check_dataset()
+	#获取训练集和验证集的迭代器，这个迭代器会在每一个epoch更新
+	train_data, valid_data = read_train_valid_tfrecord()
+
+	train_iterator = train_data.make_initializable_iterator()
+	valid_iterator = valid_data.make_initializable_iterator()
+
+	train_batch = train_iterator.get_next()
+	valid_batch = valid_iterator.get_next()
+
+	#如果使用initializable_iterator()的时候需要初始化迭代器
+	#sess.run(train_iterator.initializer)
+	#sess.run(valid_iterator.initializer)
+	
+
+	#网络训练部分
+	#使用占位符表示每个batch输入网络的图片和标签
+	x_train = tf.placeholder(tf.float32, [BATCH_SIZE, 64, 64, 3])
+	y_train = tf.placeholder(tf.float32, [BATCH_SIZE, class_num])
+	predicts, logits, _ = VGG(x_train, class_num=class_num)
+	cost = loss_op(logits, y_train)
+	optimizer = AdamOptimizer(cost,0.001)
+	accuracy = accuracy_op(predicts, y_train)
+
+	#网络验证部分
+	x_valid = tf.placeholder(tf.float32, [BATCH_SIZE, 64, 64, 3])
+	y_valid = tf.placeholder(tf.float32, [BATCH_SIZE, class_num])
+	val_predicts, val_logits, _ = VGG(x_valid, class_num=class_num)
+	val_cost = loss_op(val_logits, y_valid)
+	val_accuracy = accuracy_op(val_predicts, y_valid)
+
+	#tensorboard 可视化
+	tf.summary.scalar('cross_entropy', cost)
+	tf.summary.scalar('accuracy', accuracy)
+	merged_summary = tf.summary.merge_all()
+	writer = tf.summary.FileWriter(filewriter_path)
+	saver = tf.train.Saver()
 	
 	#训练函数
 	with tf.Session() as sess:
 		
 		print("[INFO] Open tensorboard at --logdir %s"%(filewriter_path))
 		for epoch in range(NUM_EPOCHES):
-			#获取训练样本和检验样本的迭代器
-			
-			#获取训练集和验证集的迭代器，这个迭代器会在每一个epoch更新
-			train_iterator, valid_iterator = read_train_valid_tfrecord()
-			#使用initializable_iterator()的时候需要初始化迭代器
-			#sess.run(train_iterator.initializer)
-			#sess.run(valid_iterator.initializer)
+			#把模型图加载进tensorflow
+			writer.add_graph(sess.graph)
+
+			#每一个epoch初始化一次训练集和验证集的迭代器
+			sess.run(train_iterator.initializer)
+			sess.run(valid_iterator.initializer)
+			sess.run(tf.global_variables_initializer())
+				
+			#储存每一个epoch中的各项数据	
 			epoch_loss=0
 			epoch_acc=0
 			epoch_val_loss=0
 			epoch_val_acc=0
-			batch_num = 1
-
+			train_batch_count = 1
+			valid_batch_count = 1
 			print("[TRAINING...（¯﹃¯）] Start training {}/{} epoch at time: {}".format(epoch+1, NUM_EPOCHES, datetime.now()))
-			while True:
-				#网络训练部分
-				train_image_batch, train_label_batch = batch_data_generator(train_iterator, valid_iterator, is_train=True)
-				train_image_batch = convert_to_tensor(sess.run(train_image_batch), dtype=tf.float32)
-				train_label_batch = convert_to_tensor(sess.run(train_label_batch), dtype=tf.int32)
-				predicts, logits, _ = VGG(train_image_batch)
-				#print (logits.get_shape())
-				#print (train_label_batch.get_shape())
-				cost = loss_op(logits, train_label_batch)
-				optimizer = AdamOptimizer(cost,0.001)
-				accuracy = accuracy_op(logits, train_label_batch)
-
-				#tensorboard 可视化
-				tf.summary.scalar('cross_entropy', cost)
-				tf.summary.scalar('accuracy', accuracy)
-				merged_summary = tf.summary.merge_all()
-				writer = tf.summary.FileWriter(filewriter_path)
-				saver = tf.train.Saver()
-				#把模型图加载进tensorflow
-				writer.add_graph(sess.graph)
-
-				sess.run(tf.global_variables_initializer())
+			
+			#使用feed_dict将生成的每一个batch数据输入网络进行训练
+			while True:		
 				try:
+					train_image_batch, train_label_batch = sess.run(train_batch)
 					#注意左侧变量不能与右侧图运算的变量重名，否则会改变图变量的类型，使得计算不能继续
-					loss, optimizer_ = sess.run([cost, optimizer])
-					acc = sess.run(accuracy)
+					loss, optimizer_, acc = sess.run(
+						[cost, optimizer, accuracy],
+						feed_dict={
+							x_train: train_image_batch,
+							y_train: train_label_batch
+						})
 					epoch_loss += loss
 					epoch_acc += acc
-					print ("Batch number is: %d"%(batch_num))
-					print ("[TRAINING... (￣^￣)] Training Loss in epoch %d/%d is: %f \t Training Accuracy in epoch %d/%d is: %f"%(
-						epoch+1, NUM_EPOCHES, loss, epoch+1, NUM_EPOCHES, acc
-					))
+					train_batch_count+=1
 					#print ("batch_num %d"%(batch_num))
-					if batch_num % 100==0:
+					if train_batch_count % 100==0:
 						#每100个batch输出一次平均loss和acc
-						print ("[BATCH {}] Average Loss is: {} \t Average Accuracy is: {}".format(batch_num, epoch_loss/batch_num, epoch_acc/batch_num))
-					batch_num+=1
+						print ("[Batch number %d/%d]"%(train_batch_count, train_batch_num))
+						print ("[TRAINING... (￣^￣)] Training Loss: %f \t Training Accuracy: %f"%(
+						loss, acc
+					))
 				except tf.errors.OutOfRangeError:
-					epoch_loss=np.mean(epoch_loss)
-					epoch_acc=np.mean(epoch_acc)
+					epoch_loss=epoch_loss/train_batch_count
+					epoch_acc=epoch_acc/train_batch_count
+					print ("[TRAINING... (￣^￣)] Training Loss in epoch %d/%d is: %f \t Training Accuracy in epoch %d/%d is: %f"%(
+						epoch+1, NUM_EPOCHES, epoch_loss, epoch+1, NUM_EPOCHES, epoch_acc
+					))
 					break
 
+			#每一个batch的训练结束后，生成验证数据进行验证
 			while True:
-				#网络验证部分
-				print ("[INFO] Generate valid batch")
-				valid_image_batch, valid_label_batch = batch_data_generator(train_iterator, valid_iterator, is_train=False)
-				valid_image_batch = convert_to_tensor(sess.run(valid_image_batch), dtype=tf.float32)
-				valid_label_batch = convert_to_tensor(sess.run(valid_label_batch), dtype=tf.int32)
-				val_predicts, val_logits, _ = VGG(valid_image_batch)
-				val_cost = loss_op(val_logits, valid_label_batch)
-				val_accuracy = accuracy_op(val_logits, valid_label_batch)
-
 				try:
-					val_loss, val_acc = sess.run([val_cost, val_accuracy])
+					valid_image_batch, valid_label_batch = sess.run(valid_batch)
+					val_loss, val_acc = sess.run(
+						[val_cost, val_accuracy],
+						feed_dict={
+							x_valid: valid_image_batch,
+							y_valid: valid_label_batch
+						})
 					epoch_val_loss+=val_loss
 					epoch_val_acc+=val_acc	
+					valid_batch_count+=1
 				except tf.errors.OutOfRangeError:
-					epoch_val_loss = np.mean(epoch_val_loss)
-					epoch_val_acc = np.mean(epoch_val_acc)
+					epoch_val_loss = epoch_val_loss/valid_batch_count
+					epoch_val_acc = epoch_val_acc/valid_batch_count
 					print ("[VALIDATION Σ(っ°Д°;)っ] Validation Loss in epoch %d/%d is: %f \t Validation Accuracy in epoch %d/%d is: %f"%(
-						epoch+1, NUM_EPOCHES, epoch_val_loss, epoch+1, NUM_EPOCHES, epoch_valacc
+						epoch+1, NUM_EPOCHES, epoch_val_loss, epoch+1, NUM_EPOCHES, epoch_val_acc
 					))
 					print ("[EPOCH (ง •̀_•́)ง] epoch %d/%d has finished!"%(epoch+1, NUM_EPOCHES))
 					break

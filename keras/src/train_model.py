@@ -70,7 +70,8 @@ def print_usage(program_name):
 
 
 class Train:
-    def __init__(self, model, batch_size=64, nb_epoch=25, data_augmentation=False):
+    #在此处修改batch_size, nb_epoch, data_augmentation
+    def __init__(self, model, batch_size=64, nb_epoch=200, data_augmentation=False):
         #train set
         self.train_image = None
         self.train_label = None

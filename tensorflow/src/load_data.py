@@ -18,21 +18,22 @@ from tensorflow.data import Dataset
 
 from utils import clock, resize_image, Bubble_Sort, Get_ID, little_trick
 
-'''
+
 DATABASE = '/home/kamerider/Documents/DataBase'
 TESTDATA_DIR = '/home/kamerider/Documents/TestData'
 TRAIN_DATA_DIR = '/home/kamerider/Documents/Dataset_TF/dataset_train'
 VALID_DATA_DIR = '/home/kamerider/Documents/Dataset_TF/dataset_valid'
 TFRECORD_DIR = '../TFRecords'
+
+
 '''
-
-
 #TESTDATA_DIRs
 DATABASE = '/home/kamerider/Documents/small_dataset'
 TESTDATA_DIR = '/home/kamerider/Documents/small_test'
 TRAIN_DATA_DIR = '/home/kamerider/Documents/Dataset_TF_test/dataset_train'
 VALID_DATA_DIR = '/home/kamerider/Documents/Dataset_TF_test/dataset_valid'
 TFRECORD_DIR = '../TFRecords'
+'''
 
 
 IMAG_SIZE = 64
