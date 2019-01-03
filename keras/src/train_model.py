@@ -52,6 +52,7 @@ from creat_model import Model
 DATABASE_ROOT_DIR = '/home/kamerider/Documents/DataBase'
 MODEL_PATH = '/home/kamerider/machine_learning/face_recognition/keras/model/'
 CHECKPOINT_DIR = '/home/kamerider/machine_learning/face_recognition/keras/checkpoint'
+LOG_DIR = '/home/kamerider/machine_learning/face_recognition/keras/tensorboard'
 
 def print_usage(program_name):
     print ("=================================================")
@@ -99,6 +100,47 @@ class Train:
     def convert2oneHot(self, labels, class_num):
         onehot_label = np_utils.to_categorical(labels, class_num)
         return onehot_label
+    
+    def setCallbacks(self, option):
+        #early stopping function
+        early_stopping = EarlyStopping(monitor='val_loss', patience=10, verbose=1, mode='auto')
+
+        global CHECKPOINT_DIR
+        if option == '-ShuffleSplit':
+            if not self.data_augmentation:
+                CHECKPOINT_DIR = os.path.abspath(os.path.join(CHECKPOINT_DIR, "ShuffleSplit"))
+            else:
+                CHECKPOINT_DIR = os.path.abspath(os.path.join(CHECKPOINT_DIR, "ShuffleSplit_augmentation"))
+
+        if option == '-KFoldM':
+            CHECKPOINT_DIR = os.path.abspath(os.path.join(CHECKPOINT_DIR, "KFold_manual"))
+
+        if not os.path.exists(CHECKPOINT_DIR):
+            os.makedirs(CHECKPOINT_DIR)
+
+        filename = "model_{epoch:02d}-{val_acc:.2f}.h5"
+        CHECK_POINT = os.path.join(CHECKPOINT_DIR, filename)
+
+        #使用CheckPoint来记录训练过程
+        checkpoint = ModelCheckpoint(
+            CHECKPOINT_DIR, monitor='val_acc', verbose=1, 
+            save_best_only=True, save_weights_only=False,
+            mode='auto',period=10
+            )
+        #使用ReduceLROnPlateau在val_loss不再下降的时候降低学习率
+        reducelr = ReduceLROnPlateau(
+            monitor='val_loss', factor=0.1, 
+            patience=10, verbose=0, mode='auto', 
+            epsilon=0.0001, cooldown=0, min_lr=0
+            )
+        
+        tensorboard = TensorBoard(
+            log_dir='LOG_DIR', histogram_freq=0, batch_size=64, write_graph=True, 
+            write_grads=False, write_images=False, embeddings_freq=0, 
+            embeddings_layer_names=None, embeddings_metadata=None
+            )
+
+        self.callbacks = [tensorboard, early_stopping, checkpoint, reducelr]
 
 
     #使用ShuffleSplit划分数据集为训练集和测试集进行训练
@@ -141,27 +183,6 @@ class Train:
             #define callback funcs
             #在使用ShuffleSplit划分训练集的时候使用EarlyStopping来检测
             #val_loss是否不再下降，也可以防止过拟合现象
-            early_stopping = EarlyStopping(monitor='val_loss', patience=10, verbose=1, mode='auto')
-
-            CHECKPOINT_DIR = os.path.abspath(os.path.join(CHECKPOINT_DIR, "ShuffleSplit"))
-            if not os.path.exists(CHECKPOINT_DIR):
-                os.makedirs(CHECKPOINT_DIR)
-            filename = "model_{epoch:02d}-{val_acc:.2f}.h5"
-            CHECK_POINT = os.path.join(CHECKPOINT_DIR, filename)
-            #使用CheckPoint来记录训练过程
-            checkpoint = ModelCheckpoint(
-                CHECK_POINT, monitor='val_acc', verbose=1, 
-                save_best_only=True, save_weights_only=False,
-                mode='auto',period=10
-                )
-            #使用ReduceLROnPlateau在val_loss不再下降的时候降低学习率
-            reducelr = ReduceLROnPlateau(
-                monitor='val_loss', factor=0.1, 
-                patience=10, verbose=0, mode='auto', 
-                epsilon=0.0001, cooldown=0, min_lr=0
-                )
-            
-            self.callbacks = [early_stopping, checkpoint, reducelr]
 
             #recording loss, loss_val, accuracy, accuracy_val
             #and wirte it to Train_History.txt
@@ -199,27 +220,6 @@ class Train:
             #define callback funcs
             #在使用ShuffleSplit划分训练集的时候使用EarlyStopping来检测
             #val_loss是否不再下降，也可以防止过拟合现象
-            early_stopping = EarlyStopping(monitor='val_loss', patience=10, verbose=1, mode='auto')
-
-            CHECKPOINT_DIR = os.path.abspath(os.path.join(CHECKPOINT_DIR, "ShuffleSplit_augmentation"))
-            if not os.path.exists(CHECKPOINT_DIR):
-                os.makedirs(CHECKPOINT_DIR)
-            filename = "model_{epoch:02d}-{val_acc:.2f}.h5"
-            CHECK_POINT = os.path.join(CHECKPOINT_DIR, filename)
-            #使用CheckPoint来记录训练过程
-            checkpoint = ModelCheckpoint(
-                CHECK_POINT, monitor='val_acc', verbose=1, 
-                save_best_only=True, save_weights_only=False,
-                mode='auto',period=10
-                )
-            #使用ReduceLROnPlateau在val_loss不再下降的时候降低学习率
-            reducelr = ReduceLROnPlateau(
-                monitor='val_loss', factor=0.1, 
-                patience=10, verbose=0, mode='auto', 
-                epsilon=0.0001, cooldown=0, min_lr=0
-                )
-            
-            self.callbacks = [early_stopping, checkpoint, reducelr]
 
             #利用生成器开始训练模型
             hist = self.VGG_16.model.fit_generator(datagen.flow(self.train_image, self.train_label,
@@ -242,29 +242,6 @@ class Train:
             self.train_with_CrossValidation(dataset)
             '''
             #and comment the following lines
-            #define callback funcs
-            #在使用ShuffleSplit划分训练集的时候使用EarlyStopping来检测
-            #val_loss是否不再下降，也可以防止过拟合现象
-            early_stopping = EarlyStopping(monitor='val_loss', patience=10, verbose=1, mode='auto')
-            
-            CHECKPOINT_DIR = os.path.abspath(os.path.join(CHECKPOINT_DIR, "KFold_manual"))
-            if not os.path.exists(CHECKPOINT_DIR):
-                os.makedirs(CHECKPOINT_DIR)
-            filename = "model_{epoch:02d}-{val_acc:.2f}.h5"
-            #使用CheckPoint来记录训练过程
-            checkpoint = ModelCheckpoint(
-                CHECK_POINT, monitor='val_acc', verbose=1, 
-                save_best_only=True, save_weights_only=False,
-                mode='auto',period=10
-                )
-            #使用ReduceLROnPlateau在val_loss不再下降的时候降低学习率
-            reducelr = ReduceLROnPlateau(
-                monitor='val_loss', factor=0.1, 
-                patience=10, verbose=0, mode='auto', 
-                epsilon=0.0001, cooldown=0, min_lr=0
-                )
-            
-            self.callbacks = [early_stopping, checkpoint, reducelr]
 
             #默认使用人工划分交叉验证，并使用每次划分出来的数据进行训练和验证
             #采用KFold方法划分训练集
@@ -280,7 +257,7 @@ class Train:
             for train_idx, valid_idx in self.kfold.split(dataset.images, dataset.labels):
                 #每一个fold的checkpoint放在一个文件夹中
                 foldername = "Fold_"+str(num)
-                CHECKPOINT_DIR = os.path.abspath(os.path.join(CHECK_POINT, foldername))\
+                CHECKPOINT_DIR = os.path.abspath(os.path.join(CHECK_POINT, foldername))
                 if not os.path.exists(CHECKPOINT_DIR):
                     os.makedirs(CHECKPOINT_DIR)
                 CHECK_POINT = os.path.join(CHECKPOINT_DIR, filename)
@@ -396,6 +373,7 @@ if __name__ == '__main__':
     '''
 
     option = sys.argv[1]
+    train_vgg.setCallbacks(option)
     if option == '-ShuffleSplit':
         MODEL_PATH = os.path.abspath(os.path.join(MODEL_PATH, "ShuffleSplit_model.h5"))
         train_vgg.train_with_SplitedData(dataset)

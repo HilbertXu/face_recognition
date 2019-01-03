@@ -16,21 +16,19 @@ def bias(name, shape, bias_start=0.0, trainable=True):
         name, shape, tf.float32, trainable=trainable,
         initializer=tf.constant_initializer(
             bias_start, dtype=dtpye
-        )
-    )
+        ))
+    print (var)
+    #variable_summaries(var)
     return var
 
 #随机权重
-def weight(
-    name, shape, trainable=True, 
-    initializer_weight=tf.contrib.layers.xavier_initializer_conv2d()
-    ):
-
+def weight(name, shape, stddev = 0.1, trainable=True):
     dtype=tf.float32
-    var = tf.get_variable(
-        name, shape, tf.float32, trainable=trainable,
-        initializer=initializer_weight
-        )
+    var = tf.get_variable(name, shape, tf.float32, trainable=trainable,
+                          initializer=tf.truncated_normal_initializer(
+                                              stddev = stddev, dtype = dtype))
+    print (var)
+    #variable_summaries(var)
     return var
 
 ##Relu激活层
@@ -56,7 +54,7 @@ def batch_normal(input_op, name='batch_normal', is_train=True):
     with tf.variable_scope(name, reuse=tf.AUTO_REUSE) as scope:
         if is_train:
             return batch_norm(
-                input_op, decay=0.9, epsilon=1e-5, scale=True,
+                input_op, decay=0.9, epsilon=1e-5, center=True, scale=True,
                 is_training=is_train,
                 update_collections=None, scope=scope
             )
@@ -86,16 +84,21 @@ def conv2d(input_op, name, output_dim, k_h, k_w,
         with tf.variable_scope(name, reuse=tf.AUTO_REUSE):
 
             #见上方注释，此处实际上是使用之前定义的随机权重函数生成output_dim个权重随机的卷积核
+            shape = [k_h, k_w, int(input_op.get_shape()[-1]),  output_dim]
             kernel = weight(
                 'kernel_w',
-                [k_h, k_w, input_op.get_shape()[-1], output_dim]
+                shape=shape
             ) #input_op.get_shape()[-1]为反向读取input_op的最后一个维度的大小
+              #即对一个三通道的图片的每一个通道都进行卷积操作
 
             conv = tf.nn.conv2d(input_op, kernel, strides=strides, padding='SAME')
             #padding: SAME   用0填充边界，使得每次卷积之后图像尺寸不变，一般需要接一个池化层来对图像降维
             #         VALID  不填充边界，每次卷积后图像尺寸发生改变，改变大小根据卷积核大小而定
-            
+            tf.summary.histogram('weights', kernel)
+
             biases = bias('biases', [output_dim])
+            tf.summary.histogram('biases', biases)
+
             #对卷积层添加偏置后保持原有张量尺寸不变
             conv = tf.reshape(tf.nn.bias_add(conv, biases), conv.get_shape())
             p += [kernel, biases]
@@ -115,12 +118,14 @@ def conv2d(input_op, name, output_dim, k_h, k_w,
             conv = tf.nn.conv2d(input_op, kernel, strides=strides, padding='SAME')
             #padding: SAME   用0填充边界，使得每次卷积之后图像尺寸不变，一般需要接一个池化层来对图像降维
             #         VALID  不填充边界，每次卷积后图像尺寸发生改变，改变大小根据卷积核大小而定
-            
+            tf.summary.histogram('weights', kernel)
+
             biases = bias('biases', [output_dim])
+            tf.summary.histogram('biases', biases)
             #对卷积层添加偏置后保持原有张量尺寸不变
             conv = tf.reshape(tf.nn.bias_add(conv, biases), conv.get_shape())
             p += [kernel, biases]
-            conv_with_bn = batch_norm(conv, 'bn')
+            conv_with_bn = batch_normal(conv)
             activation = relu(conv_with_bn, 'bn_relu')
             return activation
 
@@ -135,10 +140,12 @@ def fc_layer(input_op, name, output_shape, p):
     #以下生成的所有variable都处于variabel_scope(name)中
     with tf.variable_scope(name, reuse=tf.AUTO_REUSE):
         kernel = weight(
-            name+'_w', shape=[input_shape, output_shape], 
-            initializer_weight=tf.contrib.layers.xavier_initializer_conv2d()
+            name+'_w', shape=[input_shape, output_shape]
             )
+        tf.summary.histogram('weights', kernel)
+
         biases  = bias ('biases', [output_shape], 0.1)
+        tf.summary.histogram('biases', biases)
 
         # tf.nn.relu_layer()用来对输入变量input_op与kernel做乘法并且加上偏置b
         activation = tf.nn.relu_layer(input_op, kernel, biases, name=name)
@@ -240,6 +247,28 @@ def accuracy_op(logits, labels):
 
 #训练时的优化器
 def AdamOptimizer(loss, learning_rate=1e-4):
-    with tf.variable_scope('Adam', reuse=tf.AUTO_REUSE):
+    with tf.variable_scope('optimizer', reuse=tf.AUTO_REUSE):
         optimizer = tf.train.AdamOptimizer(learning_rate).minimize(loss)
         return optimizer
+
+def sgdOptimizer(l2_loss, trainable_vars, learning_rate=0.01):
+    with tf.variable_scope('optimizer', reuse=tf.AUTO_REUSE):
+        gradients = tf.gradients(l2_loss, trainable_vars)
+        gradients = list(zip(gradients, trainable_vars))
+
+        optimizer = tf.train.GradientDescentOptimizer(learning_rate)
+        train_op = optimizer.apply_gradients(grads_and_vars=gradients)
+        return train_op
+
+#记录训练时的参数用于可视化
+def variable_summaries(var):
+  """Attach a lot of summaries to a Tensor (for TensorBoard visualization)."""
+  with tf.name_scope('summaries'):
+    mean = tf.reduce_mean(var)
+    tf.summary.scalar('mean', mean)
+    with tf.name_scope('stddev'):
+      stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
+    tf.summary.scalar('stddev', stddev)
+    tf.summary.scalar('max', tf.reduce_max(var))
+    tf.summary.scalar('min', tf.reduce_min(var))
+    tf.summary.histogram('histogram', var)

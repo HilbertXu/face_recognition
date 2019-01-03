@@ -21,30 +21,30 @@ def VGG(input_op, keep_prob=0.5, class_num=62):
     conv1_1 = conv2d(input_op, name='conv1_1', output_dim=64, k_h=3, k_w=3, d_h=1, d_w=1, p=p)
     conv1_2 = conv2d(conv1_1, name='conv1_2', output_dim=64, k_h=3, k_w=3, d_h=1, d_w=1, p=p)
     mpool1 = mpool_layer(conv1_2, name='mpool1', k_h=2, k_w=2, d_h=2, d_w=2)
-    conv1_drop = dropout(mpool1, name='conv1_drop', keep_prob=0.75)
+    conv1_drop = dropout(mpool1, name='conv1_drop', keep_prob=1)
 
     conv2_1 = conv2d(conv1_drop, name='conv2_1', output_dim=128, k_h=3, k_w=3, d_h=1, d_w=1, p=p)
     conv2_2 = conv2d(conv2_1, name='conv2_2', output_dim=128, k_h=3, k_w=3, d_h=1, d_w=1, p=p)
     mpool2 = mpool_layer(conv2_2, name='mpool2', k_h=2, k_w=2, d_h=2, d_w=2)
-    conv2_drop = dropout(mpool2, name='conv2_drop', keep_prob=0.75)
+    conv2_drop = dropout(mpool2, name='conv2_drop', keep_prob=1)
 
     conv3_1 = conv2d(conv2_drop, name='conv3_1', output_dim=256, k_h=3, k_w=3, d_h=1, d_w=1, p=p)
     conv3_2 = conv2d(conv3_1, name='conv3_2', output_dim=256, k_h=3, k_w=3, d_h=1, d_w=1, p=p)
     conv3_3 = conv2d(conv3_2, name='conv3_3', output_dim=256, k_h=3, k_w=3, d_h=1, d_w=1, p=p)
     mpool3 = mpool_layer(conv3_3, name='mpool3', k_h=2, k_w=2, d_h=2, d_w=2)
-    conv3_drop = dropout(mpool3, name='conv3_drop', keep_prob=0.7)
+    conv3_drop = dropout(mpool3, name='conv3_drop', keep_prob=1)
 
     conv4_1 = conv2d(conv3_drop, name='conv4_1', output_dim=512, k_h=3, k_w=3, d_h=1, d_w=1, p=p)
     conv4_2 = conv2d(conv4_1, name='conv4_2', output_dim=512, k_h=3, k_w=3, d_h=1, d_w=1, p=p)
     conv4_3 = conv2d(conv4_2, name='conv4_3', output_dim=512, k_h=3, k_w=3, d_h=1, d_w=1, p=p)
     mpool4 = mpool_layer(conv4_3, name='mpool4', k_h=2, k_w=2, d_h=2, d_w=2)
-    conv4_drop = dropout(mpool4, name='conv4_drop', keep_prob=0.7)
+    conv4_drop = dropout(mpool4, name='conv4_drop', keep_prob=1)
 
     conv5_1 = conv2d(conv4_drop, name='conv5_1', output_dim=512, k_h=3, k_w=3, d_h=1, d_w=1, p=p)
     conv5_2 = conv2d(conv5_1, name='conv5_2', output_dim=512, k_h=3, k_w=3, d_h=1, d_w=1, p=p)
     conv5_3 = conv2d(conv5_2, name='conv5_3', output_dim=512, k_h=3, k_w=3, d_h=1, d_w=1, p=p)
     mpool5 = mpool_layer(conv5_3, name='mpool5', k_h=2, k_w=2, d_h=2, d_w=2)
-    conv5_drop = dropout(mpool5, name='conv5_drop', keep_prob=0.7)
+    conv5_drop = dropout(mpool5, name='conv5_drop', keep_prob=1)
 
     flatten = flatten_layer(conv5_drop, name='flatten')
 
@@ -61,7 +61,11 @@ def VGG(input_op, keep_prob=0.5, class_num=62):
     
     predicitions = tf.argmax(softmax, 1)
 
-    return predicitions, softmax, p
+    return predicitions, softmax, fc8, p
+
+def gradients_visualization():
+        return 0
+
 
 def save_model(sess, save_path):
     with tf.name_scope("saver"):

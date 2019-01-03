@@ -18,7 +18,7 @@ from tensorflow.python.framework.ops import convert_to_tensor
 #user defined modules
 from load_data import load_data_main, RGB_MEAN
 from model import VGG
-from ops import loss_op, accuracy_op, AdamOptimizer
+from ops import loss_op, accuracy_op, AdamOptimizer, sgdOptimizer
 from utils import *
 from image_preprocess import *
 from tqdm import tqdm
@@ -35,10 +35,10 @@ valid_batch_num=0
 class_num=0
 
 BATCH_SIZE=64
-NUM_EPOCHES=200
+NUM_EPOCHES=100
 IMAGE_SIZE=64
 
-lrate = [0.001, 0.0005, 0.0001]
+lrate = [0.05, 0.005, 0.0001]
 change_epoch = [20, 50]
 
 def check_dataset():
@@ -154,24 +154,37 @@ def run_vgg_training():
 	x_train = tf.placeholder(tf.float32, [BATCH_SIZE, 64, 64, 3])
 	y_train = tf.placeholder(tf.float32, [BATCH_SIZE, class_num])
 	learning_rate = tf.placeholder(tf.float32)
-	predicts, logits, _ = VGG(x_train, class_num=class_num)
+
+	predicts, logits, fc8, p = VGG(x_train, class_num=class_num)
 	cost = loss_op(logits, y_train)
-	optimizer = AdamOptimizer(cost,learning_rate=learning_rate)
+	var_list = [v for v in tf.trainable_variables()]
+	
+	#train_op = sgdOptimizer(tf.nn.l2_loss(fc8), p, learning_rate=learning_rate)
+	train_op = sgdOptimizer(cost, var_list, learning_rate=learning_rate)
 	accuracy = accuracy_op(predicts, y_train)
 
 	#网络验证部分
-	x_valid = tf.placeholder(tf.float32, [BATCH_SIZE, 64, 64, 3])
-	y_valid = tf.placeholder(tf.float32, [BATCH_SIZE, class_num])
-	val_predicts, val_logits, _ = VGG(x_valid, class_num=class_num)
-	val_cost = loss_op(val_logits, y_valid)
-	val_accuracy = accuracy_op(val_predicts, y_valid)
+	#x_valid = tf.placeholder(tf.float32, [BATCH_SIZE, 64, 64, 3])
+	#y_valid = tf.placeholder(tf.float32, [BATCH_SIZE, class_num])
+	#val_predicts, val_logits, fc8, p = VGG(x_valid, class_num=class_num)
+	#val_cost = loss_op(val_logits, y_valid)
+	#val_accuracy = accuracy_op(val_predicts, y_valid)
 
 	#tensorboard 可视化
 	tf.summary.scalar('cross_entropy', cost)
 	tf.summary.scalar('accuracy', accuracy)
+	#tf.summary.scalar('cross_entropy', val_cost)
+	#tf.summary.scalar('accuracy', val_accuracy)
 	merged_summary = tf.summary.merge_all()
-	writer = tf.summary.FileWriter(filewriter_path)
-	saver = tf.train.Saver()
+	train_writer = tf.summary.FileWriter(filewriter_path + '/train')
+	valid_writer = tf.summary.FileWriter(filewriter_path + '/valid')
+
+	'''
+	@TODO
+	修改数据输入模式
+	设置为只搭建一次网络，通过控制feed_dict输入内容来控制输出的是训练结果还是验证结果
+	这样就不需要上方的val_*变量，使代码得到精简
+	'''
 	
 	#训练函数
 	with tf.Session() as sess:
@@ -179,7 +192,7 @@ def run_vgg_training():
 		print("[INFO] Open tensorboard at --logdir %s"%(filewriter_path))
 		for epoch in range(NUM_EPOCHES):
 			#把模型图加载进tensorflow
-			writer.add_graph(sess.graph)
+			train_writer.add_graph(sess.graph)
 
 			#每一个epoch初始化一次训练集和验证集的迭代器
 			sess.run(train_iterator.initializer)
@@ -207,39 +220,51 @@ def run_vgg_training():
 			while True:		
 				try:
 					train_image_batch, train_label_batch = sess.run(train_batch)
-					#注意左侧变量不能与右侧图运算的变量重名，否则会改变图变量的类型，使得计算不能继续
-					loss, _, acc = sess.run(
-						[cost, optimizer, accuracy],
-						feed_dict={
-							x_train: train_image_batch,
-							y_train: train_label_batch,
-							learning_rate: rate
-						})
-						
-					epoch_loss += loss
-					epoch_acc += acc
-					train_batch_count+=1
 					#print ("batch_num %d"%(batch_num))
 					if train_batch_count % 100==0:
 						#每100个batch输出一次平均loss和acc
+						loss, acc = sess.run(
+							[cost, accuracy],  
+							feed_dict={
+								x_train: train_image_batch,
+								y_train: train_label_batch
+						})
 						print ("[Batch number %d/%d]"%(train_batch_count, train_batch_num))
 						print ("[TRAINING... (￣^￣)] Training Loss: %f \t Training Accuracy: %f"%(
 						loss, acc
 					))
+					
+					#注意左侧变量不能与右侧图运算的变量重名，否则会改变图变量的类型，使得计算不能继续
+					run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+					run_metadata = tf.RunMetadata()
+					summary, _ = sess.run(
+						[merged_summary, train_op], 
+						feed_dict={
+							x_train: train_image_batch,
+							y_train: train_label_batch,
+							learning_rate: rate
+						},
+						options=run_options,
+                        run_metadata=run_metadata)
+					train_writer.add_run_metadata(run_metadata, 'step%03d' % train_batch_count)
+					train_writer.add_summary(summary, train_batch_count)
+					train_batch_count+=1
+						
+					
 				except tf.errors.OutOfRangeError:
-					epoch_loss=epoch_loss/train_batch_count
-					epoch_acc=epoch_acc/train_batch_count
-					print ("[TRAINING... (￣^￣)] Training Loss in epoch %d/%d is: %f \t Training Accuracy in epoch %d/%d is: %f"%(
-						epoch+1, NUM_EPOCHES, epoch_loss, epoch+1, NUM_EPOCHES, epoch_acc
-					))
 					break
+			train_writer.close()
 
 			#每一个batch的训练结束后，生成验证数据进行验证
 			while True:
 				try:
+					print("fuck u")
 					valid_image_batch, valid_label_batch = sess.run(valid_batch)
+					print(valid_image_batch.shape)
+
+					#改变feed_dict来获得验证数据
 					val_loss, val_acc = sess.run(
-						[val_cost, val_accuracy],
+						[cost, accuracy],
 						feed_dict={
 							x_valid: valid_image_batch,
 							y_valid: valid_label_batch
