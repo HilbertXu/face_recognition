@@ -57,6 +57,7 @@ def VGG(input_op, keep_prob=0.5, class_num=62):
     #最后一层全连接层需要将之前层的输出激活62个类别对应的62个神经元
     #故fc8的output_shape=62
     fc8 = fc_layer(fc7_drop, name='fc8', output_shape=class_num, p=p)
+    
     softmax = softmax_layer(fc8, name='softmax')
     
     predicitions = tf.argmax(softmax, 1)

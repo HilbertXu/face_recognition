@@ -38,7 +38,7 @@ BATCH_SIZE=64
 NUM_EPOCHES=100
 IMAGE_SIZE=64
 
-lrate = [0.05, 0.005, 0.0001]
+lrate = [0.0001, 0.00005, 0.00001]
 change_epoch = [20, 50]
 
 def check_dataset():
@@ -155,20 +155,17 @@ def run_vgg_training():
 	y_train = tf.placeholder(tf.float32, [BATCH_SIZE, class_num])
 	learning_rate = tf.placeholder(tf.float32)
 
-	predicts, logits, fc8, p = VGG(x_train, class_num=class_num)
+	predicts, softmax_output, logits, params = VGG(x_train, class_num=class_num)
 	cost = loss_op(logits, y_train)
-	var_list = [v for v in tf.trainable_variables()]
-	
-	#train_op = sgdOptimizer(tf.nn.l2_loss(fc8), p, learning_rate=learning_rate)
-	train_op = sgdOptimizer(cost, var_list, learning_rate=learning_rate)
-	accuracy = accuracy_op(predicts, y_train)
 
-	#网络验证部分
-	#x_valid = tf.placeholder(tf.float32, [BATCH_SIZE, 64, 64, 3])
-	#y_valid = tf.placeholder(tf.float32, [BATCH_SIZE, class_num])
-	#val_predicts, val_logits, fc8, p = VGG(x_valid, class_num=class_num)
-	#val_cost = loss_op(val_logits, y_valid)
-	#val_accuracy = accuracy_op(val_predicts, y_valid)
+	#列出所有可以训练的参数
+	var_list = [v for v in tf.trainable_variables()]
+
+	#train_op = sgdOptimizer(tf.nn.l2_loss(cost), params, learning_rate=learning_rate)
+	#train_op = sgdOptimizer(cost, learning_rate=learning_rate)
+	#train_op = sgdOptimizer(cost, var_list, learning_rate=learning_rate)
+	train_op = AdamOptimizer(cost, learning_rate=learning_rate)
+	accuracy = accuracy_op(predicts, y_train)
 
 	#tensorboard 可视化
 	tf.summary.scalar('cross_entropy', cost)
@@ -178,6 +175,7 @@ def run_vgg_training():
 	merged_summary = tf.summary.merge_all()
 	train_writer = tf.summary.FileWriter(filewriter_path + '/train')
 	valid_writer = tf.summary.FileWriter(filewriter_path + '/valid')
+	saver = tf.train.Saver()
 
 	'''
 	@TODO
@@ -221,7 +219,7 @@ def run_vgg_training():
 				try:
 					train_image_batch, train_label_batch = sess.run(train_batch)
 					#print ("batch_num %d"%(batch_num))
-					if train_batch_count % 100==0:
+					if train_batch_count % 10==0:
 						#每100个batch输出一次平均loss和acc
 						loss, acc = sess.run(
 							[cost, accuracy],  
@@ -233,41 +231,39 @@ def run_vgg_training():
 						print ("[TRAINING... (￣^￣)] Training Loss: %f \t Training Accuracy: %f"%(
 						loss, acc
 					))
-					
-					#注意左侧变量不能与右侧图运算的变量重名，否则会改变图变量的类型，使得计算不能继续
-					run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
-					run_metadata = tf.RunMetadata()
-					summary, _ = sess.run(
-						[merged_summary, train_op], 
-						feed_dict={
-							x_train: train_image_batch,
-							y_train: train_label_batch,
-							learning_rate: rate
-						},
-						options=run_options,
-                        run_metadata=run_metadata)
-					train_writer.add_run_metadata(run_metadata, 'step%03d' % train_batch_count)
-					train_writer.add_summary(summary, train_batch_count)
+					if train_batch_count % 50==0:
+						#注意左侧变量不能与右侧图运算的变量重名，否则会改变图变量的类型，使得计算不能继续
+						run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+						run_metadata = tf.RunMetadata()
+						summary, _ = sess.run(
+							[merged_summary, train_op], 
+							feed_dict={
+								x_train: train_image_batch,
+								y_train: train_label_batch,
+								learning_rate: rate
+							},
+							options=run_options,
+							run_metadata=run_metadata)
+						train_writer.add_run_metadata(run_metadata, 'Epoch %03d Batch %03d' %(train_batch_count, epoch))
+						train_writer.add_summary(summary, train_batch_count)
+						print('Adding run metadata for', train_batch_count)  
 					train_batch_count+=1
-						
-					
 				except tf.errors.OutOfRangeError:
+					saver.save(sess, checkpoint_path+'/model.ckpt', epoch+1)
 					break
 			train_writer.close()
 
 			#每一个batch的训练结束后，生成验证数据进行验证
 			while True:
 				try:
-					print("fuck u")
 					valid_image_batch, valid_label_batch = sess.run(valid_batch)
-					print(valid_image_batch.shape)
 
 					#改变feed_dict来获得验证数据
 					val_loss, val_acc = sess.run(
 						[cost, accuracy],
 						feed_dict={
-							x_valid: valid_image_batch,
-							y_valid: valid_label_batch
+							x_train: valid_image_batch,
+							y_train: valid_label_batch
 						})
 					epoch_val_loss+=val_loss
 					epoch_val_acc+=val_acc	
@@ -282,6 +278,9 @@ def run_vgg_training():
 					break
 
 if __name__ == '__main__':
+	os.system("rm -rf /home/kamerider/machine_learning/face_recognition/tensorflow/tensorboard/train/*")
+	os.system("rm -rf /home/kamerider/machine_learning/face_recognition/tensorflow/tensorboard/valid/*")
+	os.system("rm -rf /home/kamerider/machine_learning/face_recognition/tensorflow/history/*")
 	run_vgg_training()
 
 

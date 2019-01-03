@@ -17,7 +17,6 @@ def bias(name, shape, bias_start=0.0, trainable=True):
         initializer=tf.constant_initializer(
             bias_start, dtype=dtpye
         ))
-    print (var)
     #variable_summaries(var)
     return var
 
@@ -25,18 +24,16 @@ def bias(name, shape, bias_start=0.0, trainable=True):
 def weight(name, shape, stddev = 0.1, trainable=True):
     dtype=tf.float32
     var = tf.get_variable(name, shape, tf.float32, trainable=trainable,
-                          initializer=tf.truncated_normal_initializer(
-                                              stddev = stddev, dtype = dtype))
-    print (var)
+                          initializer=tf.contrib.layers.variance_scaling_initializer())
     #variable_summaries(var)
     return var
 
-##Relu激活层
+#Relu激活层
 def relu(input_op, name='relu'):
     with tf.variable_scope(name, reuse=tf.AUTO_REUSE):
         return tf.nn.relu(input_op)
 
-#softmax分类输出层
+#softmax输出层
 def softmax_layer(intput_op, name='softmax'):
     with tf.variable_scope(name, reuse=tf.AUTO_REUSE):
         return tf.nn.softmax(intput_op)
@@ -54,20 +51,16 @@ def batch_normal(input_op, name='batch_normal', is_train=True):
     with tf.variable_scope(name, reuse=tf.AUTO_REUSE) as scope:
         if is_train:
             return batch_norm(
-                input_op, decay=0.9, epsilon=1e-5, center=True, scale=True,
-                is_training=is_train,
-                update_collections=None, scope=scope
+                input_op
             )
         else:
             return batch_norm(
-                input_op, decay=0.9, epsilon=1e-5, scale=True,
-                is_training=is_train, reuse=True,
-                update_collections=None, scope=scope
+                input_op
             )
 
 #卷积层
 def conv2d(input_op, name, output_dim, k_h, k_w,
-            d_h, d_w, p, with_bn=False):
+            d_h, d_w, p, with_bn=True):
     '''
     tf.nn.conv2d (input, filter, strides, padding, 
                     use_cudnn_on_gpu=None, data_format=None, name=None)
@@ -210,12 +203,12 @@ def conv_cond_concat(input_op, name, cond):
 #损失函数
 def loss_op(logits, label_batches):
     '''
-    tf.nn.softmax_cross_entropy_with_logits(记为f1) 和 
-    tf.nn.sparse_softmax_cross_entropy_with_logits(记为f3),以及 
+    tf.nn.softmax_cross_entropy_with_logits(记为f1)
     tf.nn.softmax_cross_entropy_with_logits_v2(记为f2) 
+    tf.nn.sparse_softmax_cross_entropy_with_logits(记为f3)
     之间的区别。
 
-    f1和f3对于参数logits的要求都是一样的，即未经处理的，直接由神经网络输出的数值， 
+    f1和f3对于参数logits的要求都是一样的，即"未经处理的，直接由神经网络输出的数值(最后一层全链接层的输出)"， 
     比如 [3.5,2.1,7.89,4.4]。两个函数不一样的地方在于labels格式的要求，f1的要求labels的格式和logits类似，比如[0,0,1,0]。
     而f3的要求labels是一个数值，这个数值记录着ground truth所在的索引。以[0,0,1,0]为例，这里真值1的索引为2。
     所以f3要求labels的输入为数字2(tensor)。一般可以用tf.argmax()来从[0,0,1,0]中取得真值的索引。
@@ -251,6 +244,7 @@ def AdamOptimizer(loss, learning_rate=1e-4):
         optimizer = tf.train.AdamOptimizer(learning_rate).minimize(loss)
         return optimizer
 
+
 def sgdOptimizer(l2_loss, trainable_vars, learning_rate=0.01):
     with tf.variable_scope('optimizer', reuse=tf.AUTO_REUSE):
         gradients = tf.gradients(l2_loss, trainable_vars)
@@ -259,7 +253,13 @@ def sgdOptimizer(l2_loss, trainable_vars, learning_rate=0.01):
         optimizer = tf.train.GradientDescentOptimizer(learning_rate)
         train_op = optimizer.apply_gradients(grads_and_vars=gradients)
         return train_op
+'''
 
+def sgdOptimizer(loss, learning_rate=0.01):
+        optimizer = tf.train.GradientDescentOptimizer(learning_rate).minimize(loss)
+        return optimizer
+
+'''
 #记录训练时的参数用于可视化
 def variable_summaries(var):
   """Attach a lot of summaries to a Tensor (for TensorBoard visualization)."""
