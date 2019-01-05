@@ -60,7 +60,7 @@ def batch_normal(input_op, name='batch_normal', is_train=True):
 
 #卷积层
 def conv2d(input_op, name, output_dim, k_h, k_w,
-            d_h, d_w, p, with_bn=True):
+            d_h, d_w, p, with_bn=False):
     '''
     tf.nn.conv2d (input, filter, strides, padding, 
                     use_cudnn_on_gpu=None, data_format=None, name=None)
@@ -80,7 +80,8 @@ def conv2d(input_op, name, output_dim, k_h, k_w,
             shape = [k_h, k_w, int(input_op.get_shape()[-1]),  output_dim]
             kernel = weight(
                 'kernel_w',
-                shape=shape
+                shape=shape,
+                trainable=True
             ) #input_op.get_shape()[-1]为反向读取input_op的最后一个维度的大小
               #即对一个三通道的图片的每一个通道都进行卷积操作
 
@@ -89,13 +90,14 @@ def conv2d(input_op, name, output_dim, k_h, k_w,
             #         VALID  不填充边界，每次卷积后图像尺寸发生改变，改变大小根据卷积核大小而定
             tf.summary.histogram('weights', kernel)
 
-            biases = bias('biases', [output_dim])
+            biases = bias('biases', [output_dim],trainable=True)
             tf.summary.histogram('biases', biases)
 
             #对卷积层添加偏置后保持原有张量尺寸不变
             conv = tf.reshape(tf.nn.bias_add(conv, biases), conv.get_shape())
             p += [kernel, biases]
             activation = relu(conv, name+'_relu')
+            variable_summaries(activation)
             return activation
     else:
         #选择加入BN层的时候
@@ -105,7 +107,8 @@ def conv2d(input_op, name, output_dim, k_h, k_w,
             #见上方注释，此处实际上是使用之前定义的随机权重函数生成output_dim个权重随机的卷积核
             kernel = weight(
                 'kernel_w',
-                [k_h, k_w, input_op.get_shape()[-1], output_dim]
+                [k_h, k_w, input_op.get_shape()[-1], output_dim],
+                trainable=True
             ) #input_op.get_shape()[-1]为反向读取input_op的最后一个维度的大小
 
             conv = tf.nn.conv2d(input_op, kernel, strides=strides, padding='SAME')
@@ -113,13 +116,14 @@ def conv2d(input_op, name, output_dim, k_h, k_w,
             #         VALID  不填充边界，每次卷积后图像尺寸发生改变，改变大小根据卷积核大小而定
             tf.summary.histogram('weights', kernel)
 
-            biases = bias('biases', [output_dim])
+            biases = bias('biases', [output_dim], trainable=True)
             tf.summary.histogram('biases', biases)
             #对卷积层添加偏置后保持原有张量尺寸不变
             conv = tf.reshape(tf.nn.bias_add(conv, biases), conv.get_shape())
             p += [kernel, biases]
             conv_with_bn = batch_normal(conv)
             activation = relu(conv_with_bn, 'bn_relu')
+            variable_summaries(activation)
             return activation
 
 
@@ -133,16 +137,17 @@ def fc_layer(input_op, name, output_shape, p):
     #以下生成的所有variable都处于variabel_scope(name)中
     with tf.variable_scope(name, reuse=tf.AUTO_REUSE):
         kernel = weight(
-            name+'_w', shape=[input_shape, output_shape]
-            )
+            name+'_w', shape=[input_shape, output_shape],
+            trainable=True)
         tf.summary.histogram('weights', kernel)
 
-        biases  = bias ('biases', [output_shape], 0.1)
+        biases  = bias ('biases', [output_shape], 0.1, trainable=True)
         tf.summary.histogram('biases', biases)
 
         # tf.nn.relu_layer()用来对输入变量input_op与kernel做乘法并且加上偏置b
         activation = tf.nn.relu_layer(input_op, kernel, biases, name=name)
         p+=[kernel, biases]
+        variable_summaries(activation)
         return activation
 
 
@@ -245,9 +250,9 @@ def AdamOptimizer(loss, learning_rate=1e-4):
         return optimizer
 
 
-def sgdOptimizer(l2_loss, trainable_vars, learning_rate=0.01):
+def sgdOptimizer(loss, trainable_vars, learning_rate=0.01):
     with tf.variable_scope('optimizer', reuse=tf.AUTO_REUSE):
-        gradients = tf.gradients(l2_loss, trainable_vars)
+        gradients = tf.gradients(loss, trainable_vars)
         gradients = list(zip(gradients, trainable_vars))
 
         optimizer = tf.train.GradientDescentOptimizer(learning_rate)

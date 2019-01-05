@@ -18,6 +18,7 @@ def VGG(input_op, keep_prob=0.5, class_num=62):
     p=[]
     #第一层卷积层用作输入层
     #此后经过卷积核逐渐增多的5次卷积
+    tf.summary.image('images', input_op, 64)
     conv1_1 = conv2d(input_op, name='conv1_1', output_dim=64, k_h=3, k_w=3, d_h=1, d_w=1, p=p)
     conv1_2 = conv2d(conv1_1, name='conv1_2', output_dim=64, k_h=3, k_w=3, d_h=1, d_w=1, p=p)
     mpool1 = mpool_layer(conv1_2, name='mpool1', k_h=2, k_w=2, d_h=2, d_w=2)

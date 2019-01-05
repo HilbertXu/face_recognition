@@ -10,6 +10,7 @@ import cv2
 import sys
 import numpy as np
 from datetime import datetime
+import matplotlib.pyplot as plt
 import tensorflow as tf
 from tensorflow.data import Dataset
 from tensorflow.python.framework import dtypes
@@ -23,9 +24,9 @@ from utils import *
 from image_preprocess import *
 from tqdm import tqdm
 
-TFRECORD_DIR = '/home/kamerider/machine_learning/face_recognition/tensorflow/TFRecords'
-filewriter_path = "/home/kamerider/machine_learning/face_recognition/tensorflow/tensorboard"  # 存储tensorboard文件
-checkpoint_path = "/home/kamerider/machine_learning/face_recognition/tensorflow/history"  # 训练好的模型和参数存放目录
+TFRECORD_DIR = '../TFRecords'
+filewriter_path = "../tensorboard"  # 存储tensorboard文件
+checkpoint_path = "../history"  # 训练好的模型和参数存放目录
 
 train_data_size=0
 valid_data_size=0
@@ -38,7 +39,7 @@ BATCH_SIZE=64
 NUM_EPOCHES=100
 IMAGE_SIZE=64
 
-lrate = [0.0001, 0.00005, 0.00001]
+lrate = [0.0001, 0.00005, 0.000001]
 change_epoch = [20, 50]
 
 def check_dataset():
@@ -90,6 +91,7 @@ def _parse_tfrecord(example_proto):
 	image_decoded = tf.reshape(image_decoded, tf.stack([height, width, channels]))
 	#数据增强
 	image_decoded = tf.image.random_flip_left_right(image_decoded)
+	#image_decoded = tf.image.per_image_standardization(image_decoded)
 	#图像归一化
 	image_decoded = tf.cast(image_decoded, tf.float32)/255.0
 
@@ -147,8 +149,7 @@ def run_vgg_training():
 	#如果使用initializable_iterator()的时候需要初始化迭代器
 	#sess.run(train_iterator.initializer)
 	#sess.run(valid_iterator.initializer)
-	
-
+	#注意左侧变量不能与右侧图运算的变量重名，否则会改变图变量的类型，使得计算不能继续
 	#网络训练部分
 	#使用占位符表示每个batch输入网络的图片和标签
 	x_train = tf.placeholder(tf.float32, [BATCH_SIZE, 64, 64, 3])
@@ -160,7 +161,7 @@ def run_vgg_training():
 
 	#列出所有可以训练的参数
 	var_list = [v for v in tf.trainable_variables()]
-
+	print (var_list)
 	#train_op = sgdOptimizer(tf.nn.l2_loss(cost), params, learning_rate=learning_rate)
 	#train_op = sgdOptimizer(cost, learning_rate=learning_rate)
 	#train_op = sgdOptimizer(cost, var_list, learning_rate=learning_rate)
@@ -218,7 +219,6 @@ def run_vgg_training():
 			while True:		
 				try:
 					train_image_batch, train_label_batch = sess.run(train_batch)
-					#print ("batch_num %d"%(batch_num))
 					if train_batch_count % 10==0:
 						#每100个batch输出一次平均loss和acc
 						loss, acc = sess.run(
@@ -232,7 +232,8 @@ def run_vgg_training():
 						loss, acc
 					))
 					if train_batch_count % 50==0:
-						#注意左侧变量不能与右侧图运算的变量重名，否则会改变图变量的类型，使得计算不能继续
+						
+
 						run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
 						run_metadata = tf.RunMetadata()
 						summary, _ = sess.run(
@@ -244,8 +245,8 @@ def run_vgg_training():
 							},
 							options=run_options,
 							run_metadata=run_metadata)
-						train_writer.add_run_metadata(run_metadata, 'Epoch %03d Batch %03d' %(train_batch_count, epoch))
-						train_writer.add_summary(summary, train_batch_count)
+						#train_writer.add_run_metadata(run_metadata, 'Epoch %03d Batch %03d' %(train_batch_count, epoch))
+						#train_writer.add_summary(summary, train_batch_count)
 						print('Adding run metadata for', train_batch_count)  
 					train_batch_count+=1
 				except tf.errors.OutOfRangeError:
