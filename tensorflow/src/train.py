@@ -19,9 +19,9 @@ from tensorflow.python.framework.ops import convert_to_tensor
 #user defined modules
 from load_data import load_data_main, RGB_MEAN
 from model import VGG
-from ops import loss_op, accuracy_op, AdamOptimizer, sgdOptimizer
+from ops import loss_op, accuracy_op, AdamOptimizer, sgdOptimizer, momentumOptimizer
 from utils import *
-from image_preprocess import *
+from vgg_preprocessing import *
 from tqdm import tqdm
 
 TFRECORD_DIR = '../TFRecords'
@@ -98,7 +98,6 @@ def _parse_tfrecord(example_proto):
 	#处理图像对应的标签，将其转化为one-hot code
 	label = tf.cast(label, tf.int32)
 	label = tf.one_hot(label, depth=class_num, on_value=1)
-
 	return image_decoded, label
 
 def read_train_valid_tfrecord():
@@ -106,20 +105,12 @@ def read_train_valid_tfrecord():
 	valid_file_path = os.path.abspath(os.path.join(TFRECORD_DIR, "valid.tfrecords"))
 	
 	print ("[INFO] Reading dataset from .tfrecord files")
-	#train_files = tf.train.match_filenames_once(train_file_path)
-	#valid_files = tf.train.match_filenames_once(valid_file_path)
-
 	#定义train dataset和对应的迭代器
 	dataset_train = tf.data.TFRecordDataset(train_file_path)
 	#shuffle buffer 大小设置为所有训练数据的数量，使整个训练集全部打乱
 	dataset_train = dataset_train.shuffle(train_data_size)
-	#设置整个dataset_train进入网络的次数，即epoches
-	#由于在下面使用了for循环来控制epoch，所以不再需要repeat操作
-	#dataset_train = dataset_train.repeat(NUM_EPOCHES)
-	#使用双线程调用解析函数来解析储存在dataset_train中的proto_example
-
 	dataset_train = dataset_train.map(_parse_tfrecord)
-	#dataset_train = dataset_train.map(lambda image, label:(image_preprocess(image, IMAGE_SIZE, IMAGE_SIZE), label), num_parallel_calls=2)
+	#dataset_train = dataset_train.map(lambda image, label:(preprocess_image(image, IMAGE_SIZE, IMAGE_SIZE, is_training=True), label), num_parallel_calls=2)
 	dataset_train = dataset_train.batch(BATCH_SIZE, drop_remainder=True)
 	dataset_train = dataset_train.prefetch(5)
 	#train_iterator = dataset_train.make_initializable_iterator()
@@ -128,7 +119,7 @@ def read_train_valid_tfrecord():
 	# 创建 validation dataset 和对应的迭代器
 	dataset_valid = tf.data.TFRecordDataset(valid_file_path)
 	dataset_valid = dataset_valid.map(_parse_tfrecord)
-	#dataset_valid = dataset_valid.map(lambda image, label: (image_preprocess(image, IMAGE_SIZE, IMAGE_SIZE), label), num_parallel_calls=2)
+	#dataset_valid = dataset_valid.map(lambda image, label: (preprocess_image(image, IMAGE_SIZE, IMAGE_SIZE, is_training=False), label), num_parallel_calls=2)
 	dataset_valid = dataset_valid.batch(BATCH_SIZE, drop_remainder=True)
 	#valid_iterator = dataset_valid.make_initializable_iterator()
 
@@ -137,42 +128,28 @@ def read_train_valid_tfrecord():
 def run_vgg_training():
 	#训练阶段
 	train_data_size, valid_data_size = check_dataset()
-	#获取训练集和验证集的迭代器，这个迭代器会在每一个epoch更新
-	train_data, valid_data = read_train_valid_tfrecord()
-
-	train_iterator = train_data.make_initializable_iterator()
-	valid_iterator = valid_data.make_initializable_iterator()
-
-	train_batch = train_iterator.get_next()
-	valid_batch = valid_iterator.get_next()
-
-	#如果使用initializable_iterator()的时候需要初始化迭代器
-	#sess.run(train_iterator.initializer)
-	#sess.run(valid_iterator.initializer)
-	#注意左侧变量不能与右侧图运算的变量重名，否则会改变图变量的类型，使得计算不能继续
 	#网络训练部分
 	#使用占位符表示每个batch输入网络的图片和标签
 	x_train = tf.placeholder(tf.float32, [BATCH_SIZE, 64, 64, 3])
 	y_train = tf.placeholder(tf.float32, [BATCH_SIZE, class_num])
-	learning_rate = tf.placeholder(tf.float32)
+	#learning_rate = tf.placeholder(tf.float32)
 
-	predicts, softmax_output, logits, params = VGG(x_train, class_num=class_num)
-	cost = loss_op(logits, y_train)
+	predicts, softmax_output, logits, fc_params_loss = VGG(x_train, class_num=class_num)
+	cost = loss_op(softmax_output, y_train, fc_params_loss)
+	cost += fc_params_loss
 
 	#列出所有可以训练的参数
 	var_list = [v for v in tf.trainable_variables()]
-	print (var_list)
 	#train_op = sgdOptimizer(tf.nn.l2_loss(cost), params, learning_rate=learning_rate)
 	#train_op = sgdOptimizer(cost, learning_rate=learning_rate)
 	#train_op = sgdOptimizer(cost, var_list, learning_rate=learning_rate)
-	train_op = AdamOptimizer(cost, learning_rate=learning_rate)
+	#train_op = AdamOptimizer(cost, learning_rate=learning_rate)
+	train_op = momentumOptimizer(cost)
 	accuracy = accuracy_op(predicts, y_train)
 
 	#tensorboard 可视化
 	tf.summary.scalar('cross_entropy', cost)
 	tf.summary.scalar('accuracy', accuracy)
-	#tf.summary.scalar('cross_entropy', val_cost)
-	#tf.summary.scalar('accuracy', val_accuracy)
 	merged_summary = tf.summary.merge_all()
 	train_writer = tf.summary.FileWriter(filewriter_path + '/train')
 	valid_writer = tf.summary.FileWriter(filewriter_path + '/valid')
@@ -190,6 +167,15 @@ def run_vgg_training():
 		
 		print("[INFO] Open tensorboard at --logdir %s"%(filewriter_path))
 		for epoch in range(NUM_EPOCHES):
+			#获取训练集和验证集的迭代器，这个迭代器会在每一个epoch更新
+			train_data, valid_data = read_train_valid_tfrecord()
+
+			#如果使用initializable_iterator()的时候需要初始化迭代器
+			train_iterator = train_data.make_initializable_iterator()
+			valid_iterator = valid_data.make_initializable_iterator()
+
+			train_batch = train_iterator.get_next()
+			valid_batch = valid_iterator.get_next()
 			#把模型图加载进tensorflow
 			train_writer.add_graph(sess.graph)
 
@@ -207,18 +193,16 @@ def run_vgg_training():
 			valid_batch_count = 1
 			print("[TRAINING...（¯﹃¯）] Start training {}/{} epoch at time: {}".format(epoch+1, NUM_EPOCHES, datetime.now()))
 
-			#学习率调整
-			if 0 <= epoch <= change_epoch[0]:
-				rate = lrate[0]
-			elif change_epoch[0] <= epoch <= change_epoch[1]:
-				rate = lrate[1] 
-			else:
-				rate = lrate[2]
-			
 			#使用feed_dict将生成的每一个batch数据输入网络进行训练
 			while True:		
 				try:
 					train_image_batch, train_label_batch = sess.run(train_batch)
+					sess.run(
+						train_op,
+						feed_dict={
+								x_train: train_image_batch,
+								y_train: train_label_batch
+							})
 					if train_batch_count % 10==0:
 						#每100个batch输出一次平均loss和acc
 						loss, acc = sess.run(
@@ -227,7 +211,7 @@ def run_vgg_training():
 								x_train: train_image_batch,
 								y_train: train_label_batch
 						})
-						print ("[Batch number %d/%d]"%(train_batch_count, train_batch_num))
+						print ("[EPOCH %d/%d  Batch number %d/%d]"%(epoch+1, NUM_EPOCHES, train_batch_count, train_batch_num))
 						print ("[TRAINING... (￣^￣)] Training Loss: %f \t Training Accuracy: %f"%(
 						loss, acc
 					))
@@ -240,13 +224,12 @@ def run_vgg_training():
 							[merged_summary, train_op], 
 							feed_dict={
 								x_train: train_image_batch,
-								y_train: train_label_batch,
-								learning_rate: rate
+								y_train: train_label_batch
 							},
 							options=run_options,
 							run_metadata=run_metadata)
-						#train_writer.add_run_metadata(run_metadata, 'Epoch %03d Batch %03d' %(train_batch_count, epoch))
-						#train_writer.add_summary(summary, train_batch_count)
+						train_writer.add_run_metadata(run_metadata, 'Epoch %03d Batch %03d' %(train_batch_count, epoch))
+						train_writer.add_summary(summary, train_batch_count)
 						print('Adding run metadata for', train_batch_count)  
 					train_batch_count+=1
 				except tf.errors.OutOfRangeError:

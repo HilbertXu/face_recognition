@@ -10,23 +10,25 @@ from tensorflow.layers import batch_normalization as batch_norm
 import numpy as numpy
 
 #网络层的常数偏置
-def bias(name, shape, bias_start=0.0, trainable=True):
-    dtpye = tf.float32
-    var = tf.get_variable(
+def bias(name, shape, bias_start=0.1, trainable=True):
+	dtpye = tf.float32
+	#bias = tf.truncated_normal(shape, stddev=bias_start)
+	#var = tf.Variable(bias)
+	var = tf.get_variable(
         name, shape, tf.float32, trainable=trainable,
-        initializer=tf.constant_initializer(
-            bias_start, dtype=dtpye
+        initializer=tf.truncated_normal_initializer(
+            stddev=bias_start, dtype=dtpye
         ))
-    #variable_summaries(var)
-    return var
+	return var
 
 #随机权重
 def weight(name, shape, stddev = 0.1, trainable=True):
-    dtype=tf.float32
-    var = tf.get_variable(name, shape, tf.float32, trainable=trainable,
+	dtype=tf.float32
+	#weight = tf.truncated_normal(shape, stddev=stddev)
+	#var = tf.Variable(weight)
+	var = tf.get_variable(name, shape, tf.float32, trainable=trainable,
                           initializer=tf.contrib.layers.variance_scaling_initializer())
-    #variable_summaries(var)
-    return var
+	return var
 
 #Relu激活层
 def relu(input_op, name='relu'):
@@ -90,7 +92,7 @@ def conv2d(input_op, name, output_dim, k_h, k_w,
             #         VALID  不填充边界，每次卷积后图像尺寸发生改变，改变大小根据卷积核大小而定
             tf.summary.histogram('weights', kernel)
 
-            biases = bias('biases', [output_dim],trainable=True)
+            biases = bias('biases', [output_dim], trainable=True)
             tf.summary.histogram('biases', biases)
 
             #对卷积层添加偏置后保持原有张量尺寸不变
@@ -98,7 +100,7 @@ def conv2d(input_op, name, output_dim, k_h, k_w,
             p += [kernel, biases]
             activation = relu(conv, name+'_relu')
             variable_summaries(activation)
-            return activation
+            return activation, kernel
     else:
         #选择加入BN层的时候
         strides = [1, d_h, d_w, 1]
@@ -124,7 +126,7 @@ def conv2d(input_op, name, output_dim, k_h, k_w,
             conv_with_bn = batch_normal(conv)
             activation = relu(conv_with_bn, 'bn_relu')
             variable_summaries(activation)
-            return activation
+            return activation, kernel
 
 
 #全连接层(Dense)
@@ -148,7 +150,7 @@ def fc_layer(input_op, name, output_shape, p):
         activation = tf.nn.relu_layer(input_op, kernel, biases, name=name)
         p+=[kernel, biases]
         variable_summaries(activation)
-        return activation
+        return activation, kernel, biases
 
 
 #池化层
@@ -206,26 +208,30 @@ def conv_cond_concat(input_op, name, cond):
 #训练时使用的评估指标
 
 #损失函数
-def loss_op(logits, label_batches):
-    '''
-    tf.nn.softmax_cross_entropy_with_logits(记为f1)
-    tf.nn.softmax_cross_entropy_with_logits_v2(记为f2) 
-    tf.nn.sparse_softmax_cross_entropy_with_logits(记为f3)
-    之间的区别。
+def loss_op(logits, label_batches, regular):
+	'''
+	tf.nn.softmax_cross_entropy_with_logits(记为f1)
+	tf.nn.softmax_cross_entropy_with_logits_v2(记为f2) 
+	tf.nn.sparse_softmax_cross_entropy_with_logits(记为f3)
+	之间的区别。
 
-    f1和f3对于参数logits的要求都是一样的，即"未经处理的，直接由神经网络输出的数值(最后一层全链接层的输出)"， 
-    比如 [3.5,2.1,7.89,4.4]。两个函数不一样的地方在于labels格式的要求，f1的要求labels的格式和logits类似，比如[0,0,1,0]。
-    而f3的要求labels是一个数值，这个数值记录着ground truth所在的索引。以[0,0,1,0]为例，这里真值1的索引为2。
-    所以f3要求labels的输入为数字2(tensor)。一般可以用tf.argmax()来从[0,0,1,0]中取得真值的索引。
+	f1和f3对于参数logits的要求都是一样的，即"未经处理的，直接由神经网络输出的数值(最后一层全链接层的输出)"， 
+	比如 [3.5,2.1,7.89,4.4]。两个函数不一样的地方在于labels格式的要求，f1的要求labels的格式和logits类似，比如[0,0,1,0]。
+	而f3的要求labels是一个数值，这个数值记录着ground truth所在的索引。以[0,0,1,0]为例，这里真值1的索引为2。
+	所以f3要求labels的输入为数字2(tensor)。一般可以用tf.argmax()来从[0,0,1,0]中取得真值的索引。
 
-    f1和f2之间很像，实际上官方文档已经标记出f1已经是deprecated 状态，推荐使用f2。
-    两者唯一的区别在于f1在进行反向传播的时候，只对logits进行反向传播，labels保持不变。而f2在进行反向传播的时候，
-    同时对logits和labels都进行反向传播，如果将labels传入的tensor设置为stop_gradients，就和f1一样了。 
-    '''
-    with tf.variable_scope('loss_op', reuse=tf.AUTO_REUSE):
-        cross_entropy = tf.nn.softmax_cross_entropy_with_logits_v2(logits=logits,labels=label_batches)
-        cost = tf.reduce_mean(cross_entropy)
-        return cost
+	f1和f2之间很像，实际上官方文档已经标记出f1已经是deprecated 状态，推荐使用f2。
+	两者唯一的区别在于f1在进行反向传播的时候，只对logits进行反向传播，labels保持不变。而f2在进行反向传播的时候，
+	同时对logits和labels都进行反向传播，如果将labels传入的tensor设置为stop_gradients，就和f1一样了。 
+
+	with tf.variable_scope('loss_op', reuse=tf.AUTO_REUSE):
+	cross_entropy = tf.nn.softmax_cross_entropy_with_logits_v2(logits=logits,labels=label_batches)
+	cost = tf.reduce_mean(cross_entropy)
+	return cost
+	'''
+	with tf.variable_scope('loss_op'):
+		loss = -tf.reduce_mean(label_batches*tf.log(tf.clip_by_value(logits, 1e-10, 1.0))) + regular
+		return loss
 
 #评价分类精确度函数
 def accuracy_op(logits, labels):
@@ -258,6 +264,13 @@ def sgdOptimizer(loss, trainable_vars, learning_rate=0.01):
         optimizer = tf.train.GradientDescentOptimizer(learning_rate)
         train_op = optimizer.apply_gradients(grads_and_vars=gradients)
         return train_op
+
+def momentumOptimizer(loss, momentum=0.9, learning_rate=0.01):
+	with tf.variable_scope('optimizer'):
+		optimizer = tf.train.MomentumOptimizer(learning_rate=learning_rate, momentum=momentum)
+		train_op = optimizer.minimize(loss)
+		return train_op
+
 '''
 
 def sgdOptimizer(loss, learning_rate=0.01):
