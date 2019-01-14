@@ -3,7 +3,7 @@
 '''
 Date: 2019/1/11
 Author: Xu Yucheng
-Abstract: Code for build VGG model
+Abstract: Code for building VGG model
 '''
 import math
 import torch.nn
@@ -11,12 +11,10 @@ from torch.autograd import Variable
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
 
-#trainning parameters
+#dataset parameters
 CLASS_NUM = 62
 IMAGE_SIZE = 64
-BATCH_SIZE = 64
-EPOCH_NUM = 100
-LR = 0.01
+
 
 #structs of VGG models
 #usually use VGG16
