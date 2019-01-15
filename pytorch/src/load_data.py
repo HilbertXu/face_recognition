@@ -18,7 +18,7 @@ def load_train_data(path=TRAIN_DATASET):
     trainset = torchvision.datasets.ImageFolder(path, 
                                                 transform=transforms.Compose([
                                                     transforms.Resize((64,64)),
-                                                    transforms.Centercrop(64),
+                                                    transforms.CenterCrop(64),
                                                     transforms.RandomHorizontalFlip(),
                                                     transforms.ToTensor(),
                                                     #此处训练图像的均值和标准差由utils.py中函数算得
@@ -34,9 +34,9 @@ def load_valid_data(path=VALID_DATASET):
                                                 transform=transforms.Compose([
                                                     transforms.Resize((64,64)),
                                                     transforms.ToTensor(),
-                                                    transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),]))
+                                                    transforms.Normalize((0.5229, 0.4207, 0.3647), (0.2120, 0.1877, 0.1734)),]))
     valid_loader = torch.utils.data.DataLoader(
-        trainset, batch_size=64, 
+        validset, batch_size=64, 
         shuffle=True, num_workers=4
         )
     return valid_loader
