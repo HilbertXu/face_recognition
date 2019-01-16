@@ -17,6 +17,7 @@ import torch.backends.cudnn as cudnn
 import numpy as np
 from build_model import *
 from load_data import *
+from utils import *
 
 #trainning parameters
 BATCH_SIZE = 64
@@ -29,6 +30,7 @@ def train_and_save():
     trainloader, classes = generate_dataset('train')
     validloader = generate_dataset('valid')
     net = VGG('VGG16')
+    print (net)
     optimizer = optim.SGD(net.parameters(), lr=LR, momentum=0.9)
     criterion = torch.nn.CrossEntropyLoss()
 
@@ -63,18 +65,18 @@ def train_and_save():
             optimizer.step() #反向传播后更新参数
             running_loss += loss.item()
 
-            #计算分类准确率
-            prediction = torch.argmax(outputs, 1)
-            #也可以用torch.eq()函数实现
-            #running_acc += torch.eq(labels.data).cpu().sum()
-            running_acc += (prediction == labels).sum().float()
-            total += len(labels)
-            running_acc = running_acc/total
-
             #每十次输出一次loss的平均值和acc的平均值
             if batch_idx%10 == 0:
-                print ("[EPOCH %d/%d BATCH %d] loss: %.3f acc: %.3f"%(epoch+1, EPOCH_NUM, batch_idx+1, running_loss/10, running_acc))
+                #计算分类准确率
+                prediction = torch.argmax(outputs, 1)
+                #也可以用torch.eq()函数实现
+                #correct += predicted.eq(targets.data).cpu().sum()
+                running_acc += (prediction == labels).sum().float()
+                running_acc = running_acc/len(labels)
+                print ("[EPOCH %d/%d BATCH %d] loss: %.3f acc: %.3f"%(epoch+1, EPOCH_NUM, batch_idx, running_loss/10, running_acc))
                 running_loss=0
+                running_acc=0
+                total=0
         
 
         net.eval()
@@ -96,8 +98,29 @@ def train_and_save():
     print ("Finished Training")
     torch.save(net, '/home/kamerider/machine_learning/face_recognition/pytorch/models/net.pkl')
     torch.save(net, '/home/kamerider/machine_learning/face_recognition/pytorch/models/net_params.pkl')
-            
-            
+
+def net_test():
+    # 先切到测试模型
+    net.eval()
+    test_loss = 0
+    correct = 0
+    total = 0
+    test_loader = generate_dataset('test')
+    for batch_idx, (inputs, targets) in enumerate(test_loader):
+        if use_cuda:
+            inputs, targets = inputs.cuda(), targets.cuda()
+        inputs, targets = Variable(inputs), Variable(targets)
+        outputs = net(inputs)
+        loss = criterion(outputs, targets)
+        # loss is variable , if add it(+=loss) directly, there will be a bigger ang bigger graph.
+        test_loss += loss.item()
+        _, predicted = torch.max(outputs, 1)
+        total += targets.size(0)
+        correct += predicted.eq(targets.data).cpu().sum()
+
+        progress_bar(batch_idx, len(testloader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
+            % (test_loss/(batch_idx+1), 100.*correct/total, correct, total))
+
             
 if __name__ == '__main__':
     train_and_save()
