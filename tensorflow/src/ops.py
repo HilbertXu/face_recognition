@@ -62,7 +62,7 @@ def batch_normal(input_op, name='batch_normal', is_train=True):
 
 #卷积层
 def conv2d(input_op, name, output_dim, k_h, k_w,
-            d_h, d_w, p, with_bn=False):
+            d_h, d_w, p, with_bn=True):
     '''
     tf.nn.conv2d (input, filter, strides, padding, 
                     use_cudnn_on_gpu=None, data_format=None, name=None)

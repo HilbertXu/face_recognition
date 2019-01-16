@@ -6,8 +6,10 @@ Date: 2018/12/29
 Author: Xu Yucheng
 Abstract: Code for build VGG-16 model
 '''
-
+import time
 import tensorflow as tf
+import math
+from datetime import datetime
 from ops import *
 
 EGULARIZATION_RATE = 0.0001 #描述模型复杂度的正则化项在损失函数中的系数
@@ -57,11 +59,11 @@ def VGG(input_op, keep_prob=0.5, class_num=62):
 	softmax = softmax_layer(fc8, name='softmax')
 
 	predicitions = tf.argmax(softmax, 1)
-	fc_params_loss = l2_regularizer(fc6_w, fc7_w, fc8_w, conv1_1_w, conv1_2_w, 
+	params_loss = l2_regularizer(fc6_w, fc7_w, fc8_w, conv1_1_w, conv1_2_w, 
 									conv2_1_w, conv2_2_w, 
 									conv3_1_w, conv3_2_w, conv3_3_w,
 									conv4_1_w, conv4_2_w, conv4_3_w)
-	return predicitions, softmax, fc8, fc_params_loss
+	return predicitions, softmax, fc8, params_loss, p
 
 def gradients_visualization():
 	return 0
@@ -83,3 +85,43 @@ def save_model(sess, save_path):
 	with tf.name_scope("saver"):
 		saver =  tf.train.Saver()
 		saver.save(sess, save_model)
+
+
+#以下是模拟训练过程并测试模型的部分
+def time_tensorflow_run(session,target,feed,info_string):
+	num_batches = 100
+	num_steps_burn_in = 10  # 预热轮数
+	total_duration = 0.0  # 总时间
+	total_duration_squared = 0.0  # 总时间的平方和用以计算方差
+	for i in range(num_batches + num_steps_burn_in):
+		start_time = time.time()
+		_ = session.run(target,feed_dict=feed)
+		duration = time.time() - start_time
+		if i >= num_steps_burn_in:  # 只考虑预热轮数之后的时间
+			if not i % 10:
+				print('%s:step %d,duration = %.3f' % (datetime.now(), i - num_steps_burn_in, duration))
+				total_duration += duration
+				total_duration_squared += duration * duration
+	mn = total_duration / num_batches  # 平均每个batch的时间
+	vr = total_duration_squared / num_batches - mn * mn  # 方差
+	sd = math.sqrt(vr)  # 标准差
+	print('%s: %s across %d steps, %.3f +/- %.3f sec/batch' % (datetime.now(), info_string, num_batches, mn, sd))
+
+def run_benchmark():
+	with tf.Graph().as_default():
+		image_size = 64  # 输入图像尺寸
+		batch_size = 64
+		images = tf.Variable(tf.random_normal([batch_size, image_size, image_size, 3], dtype=tf.float32, stddev=1e-1))
+		keep_prob = tf.placeholder(tf.float32)
+		prediction,softmax,fc8,loss, p = VGG(images,keep_prob)
+		init = tf.global_variables_initializer()
+		sess = tf.Session()
+		sess.run(init)
+		time_tensorflow_run(sess, prediction,{keep_prob:1.0}, "Forward")
+		# 用以模拟训练的过程
+		objective = tf.nn.l2_loss(fc8)  # 给一个loss
+		grad = tf.gradients(objective, p)  # 相对于loss的 所有模型参数的梯度
+		time_tensorflow_run(sess, grad, {keep_prob:0.5},"Forward-backward")
+
+if __name__ == '__main__':
+	run_benchmark()

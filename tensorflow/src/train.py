@@ -182,7 +182,7 @@ def run_vgg_training():
 			#每一个epoch初始化一次训练集和验证集的迭代器
 			sess.run(train_iterator.initializer)
 			sess.run(valid_iterator.initializer)
-			sess.run(tf.global_variables_initializer())
+			sess.run([tf.global_variables_initializer(), tf.local_variables_initializer()])
 				
 			#储存每一个epoch中的各项数据	
 			epoch_loss=0
