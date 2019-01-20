@@ -18,6 +18,7 @@ from keras.layers import Convolution2D, MaxPooling2D
 from keras.optimizers import SGD
 from keras import optimizers
 from keras.utils import np_utils
+from keras.utils import plot_model
 from keras.models import load_model
 from keras import backend as K
 
@@ -109,6 +110,8 @@ class Model:
         self.model.add(Activation('softmax'))
         #输出模型概况
         self.model.summary()
+        #plot_model(self.model, to_file='../model/VGG-16.png', show_shapes=True)
+
 
     #由于函数keras.wrappers.scikit_learn.KerasClassifier(build_fn=None, **sk_params)第一个参数应该为一个编译好的模型
     #所以增加一个建立并编译模型的函数，模型与build_model()中的一致，只是加入了编译命令以及返回值
@@ -167,6 +170,7 @@ class Model:
         #nb_classes
         self.model.add(Dense(62))
         self.model.add(Activation('softmax'))
+        #plot_model(self.model, to_file='../model/VGG-16.png', show_shapes=True)
 
         sgd = SGD(lr = 0.01, decay = 1e-6,
                   momentum = 0.9, nesterov = True) #采用SGD+momentum的优化器进行训练，首先生成一个优化器对象
@@ -186,6 +190,12 @@ class Model:
 
     def load_model(self, file_path):
         self.model = load_model(file_path)
+    
+    def predict(self, images, image_num=62):
+
+        #result = self.model.predict_proba(images)
+        result = self.model.predict_classes(images)
+        return result
 
 
 if __name__ == '__main__':

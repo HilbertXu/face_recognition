@@ -9,13 +9,13 @@ Abstract: Code for rename images in all folders
 import os
 
 #BODY_IMAGE_DIR = '/home/kamerider/catkin_ws/src/machine_vision/DataBase/1611472/body/'
-DATA_BASE = '/home/kamerider/Documents/DataBase'
+DATA_BASE = '/home/kamerider/machine_learning/face_recognition/dataset/TestData'
 
 def reName(dir_name):
     '''
     实现将所有类别中的所有文章重新命名
     '''
-    index = 9999
+    start_index = 9999
     tmp = 0
     count=0
     file_list = os.listdir(dir_name)
@@ -32,14 +32,14 @@ def reName(dir_name):
 
     temp_list = os.listdir(dir_name)
     for files in temp_list:
-        index = index + 1
+        start_index = start_index + 1
         count +=1
         temp_dir = os.path.join(dir_name, files)
         #print ('---------------------------------')
         #print ('temp path is '+temp_dir)
         file_name = os.path.splitext(files)[0]
         file_type = os.path.splitext(files)[1]
-        new_dir = os.path.join(dir_name, str(index)+file_type)
+        new_dir = os.path.join(dir_name, str(start_index)+file_type)
         if new_dir.endswith('.PNG'):
             #若发现PNG结尾的图片文件，纠正为png
             length = len(new_dir)-4

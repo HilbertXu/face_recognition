@@ -18,6 +18,9 @@ from utils import clock, resize_image, Bubble_Sort, Get_ID
 TESTDATA_DIR = '/home/kamerider/Documents/TestData'
 #TESTDATA_DIR = '/home/kamerider/Documents/small_test'
 
+#将生成的order_sheet传出，便于在识别时映射学号
+ORDER_SHEET = []
+
 class Dataset:
     def __init__(self, path):
         self.DATASET_ROOT_DIR = path

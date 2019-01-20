@@ -52,7 +52,7 @@ def load_test_data(path=TEST_DATASET):
         testset, batch_size=64, 
         shuffle=True, num_workers=4
         )
-    return valid_loader
+    return test_loader
 
 def get_class(path=TRAIN_DATASET):
     classes = os.listdir(TRAIN_DATASET)

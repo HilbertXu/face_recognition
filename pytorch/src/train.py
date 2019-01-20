@@ -21,7 +21,7 @@ from utils import *
 
 #trainning parameters
 BATCH_SIZE = 64
-EPOCH_NUM = 100
+EPOCH_NUM = 10
 LR = 0.01
 USE_CUDA = torch.cuda.is_available()
 
@@ -97,7 +97,7 @@ def train_and_save():
 
     print ("Finished Training")
     torch.save(net, '/home/kamerider/machine_learning/face_recognition/pytorch/models/net.pkl')
-    torch.save(net, '/home/kamerider/machine_learning/face_recognition/pytorch/models/net_params.pkl')
+    torch.save(net.state_dict(), '/home/kamerider/machine_learning/face_recognition/pytorch/models/net_params.pkl')
 
 def net_test():
     # 先切到测试模型

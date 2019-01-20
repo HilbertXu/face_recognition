@@ -12,6 +12,7 @@ import sys
 import shutil
 import numpy as np
 import tensorflow as tf 
+import random
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework.ops import convert_to_tensor
 from tensorflow.data import Dataset
@@ -233,6 +234,15 @@ def generate_tfrecord_file():
     if not os.path.exists(DES_DIR):
         os.makedirs(DES_DIR)
 
+    #打乱现有的图像列表和标签列表
+    global train_labels
+    global train_image_paths
+    train_seed = random.randint(0,100)
+    random.seed(train_seed)
+    random.shuffle(train_image_paths)
+    random.seed(train_seed)
+    random.shuffle(train_labels)
+
     #生成train和valiad两个.tfrecord文件
     train_filename = os.path.abspath(os.path.join(TFRECORD_DIR, "train.tfrecords"))
     with tf.python_io.TFRecordWriter(train_filename) as tfrecord_writer:
@@ -265,6 +275,14 @@ def generate_tfrecord_file():
 
     print ("[INFO] Writing valid data to %s"%("valid.tfrecords"))
     #记录验证集数据
+    global valid_labels
+    global valid_image_paths
+    valid_seed = random.randint(0,100)
+    random.seed(valid_seed)
+    random.shuffle(valid_image_paths)
+    random.seed(valid_seed)
+    random.shuffle(valid_labels)
+    
     valid_filename = os.path.abspath(os.path.join(TFRECORD_DIR, "valid.tfrecords"))
     with tf.python_io.TFRecordWriter(valid_filename) as tfrecord_writer:
         for i in range(len(valid_labels)):

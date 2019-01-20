@@ -50,29 +50,13 @@ from creat_model import Model
 # Uncomment to use a small dataset for test
 #DATABASE_ROOT_DIR = '/home/kamerider/Documents/small_dataset'
 DATABASE_ROOT_DIR = '/home/kamerider/Documents/DataBase'
-MODEL_PATH = '/home/kamerider/machine_learning/face_recognition/keras/model/'
-CHECKPOINT_DIR = '/home/kamerider/machine_learning/face_recognition/keras/checkpoint'
-LOG_DIR = '/home/kamerider/machine_learning/face_recognition/keras/tensorboard'
-
-def print_usage(program_name):
-    print ("=================================================")
-    print ("\033[1;31;40m        [ERROR] Parameters Mismatching !         \033[0m")
-    print ("=================================================\n")
-    print (" \033[1;31;40mUsage of %s: \033[0m"%(program_name))
-    print (" python %s +[options]"%(program_name))
-    print (" options:")
-    print ("-ShuffleSplit                  Split train data & valid data manually")
-    print ("-KFoldM                        Use KFold to split data, and use each fold of data to implement Cross Validation")
-    print ("-KFoldW                        Use Scikit-learn wrapper for keras to implement Cross Validation")
-    print ("-GridSearch                    Use Graid Search from Scikit-learn to tune hyper-parameter(optimizer, init_mode, nb_epoch, batch_size)")
-    print ("-help                          Print This Help")
-    print ("\033[1;31;40m PLZ DO NOT use %s for now, it may cause Memory Overflow\033[0m"%('-GridSearch'))
-    exit(0)
-
+MODEL_PATH = '../model/'
+CHECKPOINT_DIR = '../checkpoint'
+LOG_DIR = '../tensorboard'
 
 class Train:
     #在此处修改batch_size, nb_epoch, data_augmentation
-    def __init__(self, model, batch_size=64, nb_epoch=200, data_augmentation=False):
+    def __init__(self, model, batch_size=64, nb_epoch=2, data_augmentation=False):
         #train set
         self.train_image = None
         self.train_label = None
@@ -106,13 +90,13 @@ class Train:
         early_stopping = EarlyStopping(monitor='val_loss', patience=10, verbose=1, mode='auto')
 
         global CHECKPOINT_DIR
-        if option == '-ShuffleSplit':
+        if option == 'ShuffleSplit':
             if not self.data_augmentation:
                 CHECKPOINT_DIR = os.path.abspath(os.path.join(CHECKPOINT_DIR, "ShuffleSplit"))
             else:
                 CHECKPOINT_DIR = os.path.abspath(os.path.join(CHECKPOINT_DIR, "ShuffleSplit_augmentation"))
 
-        if option == '-KFoldM':
+        if option == 'KFoldM':
             CHECKPOINT_DIR = os.path.abspath(os.path.join(CHECKPOINT_DIR, "KFold_manual"))
 
         if not os.path.exists(CHECKPOINT_DIR):
@@ -195,8 +179,6 @@ class Train:
                            #验证集是用来在训练过程中优化参数的，可以直接使用validation_split从训练集中划分出来
                            shuffle = True,
                            callbacks=self.callbacks)
-            #记录训练数据并可视化
-            visualization(hist, self.nb_epoch)
 
         #使用实时数据提升
         else:
@@ -228,9 +210,6 @@ class Train:
                                      nb_epoch = self.nb_epoch,
                                      validation_data = (self.valid_image, self.valid_label),
                                      callbacks=self.callbacks)
-            visualization(hist, self.nb_epoch)
-            
-
     
     #Using KFold Cross Validate
     #Warning! This may take long time to train
@@ -348,58 +327,55 @@ class Train:
         for params, mean_score, scores in grid_result.grid_scores_:
             print('[INFO] %f (%f) with %r' % (scores.mean(), scores.std(), params))
 
-
-if __name__ == '__main__':
-
-    #print usage
-    numOfargv = len(sys.argv)
-    if numOfargv < 2:
-        print_usage(sys.argv[0])
-
+def train_model_main(option):
     #load dataset
     dataset = Dataset (DATABASE_ROOT_DIR)
     dataset.Load_Dataset()
     #build model
     VGG_16 = Model()
-    VGG_16.build_model(dataset)
-    
+    VGG_16.build_model(dataset) 
     train_vgg = Train(VGG_16)
 
-    '''
-    ==================================================================
-    @TODO
-    从控制台读取训练参数(options, batch_size, nb_epoch, data_augmentation)
-    ==================================================================
-    '''
-
-    option = sys.argv[1]
     train_vgg.setCallbacks(option)
-    if option == '-ShuffleSplit':
+    global MODEL_PATH
+    if option == 'DataShuffleSplit':
         MODEL_PATH = os.path.abspath(os.path.join(MODEL_PATH, "ShuffleSplit_model.h5"))
         train_vgg.train_with_SplitedData(dataset)
         VGG_16.evaluate_model(train_vgg.test_image, train_vgg.test_label)
         VGG_16.save_model(MODEL_PATH)
     
-    elif option == '-KFoldM':
+    elif option == 'KFoldM':
         MODEL_PATH = os.path.abspath(os.path.join(MODEL_PATH, "KFold_Manual_model.h5"))
         train_vgg.train_with_CrossValidation_Manual(dataset)
         VGG_16.save_model(MODEL_PATH)
 
-    elif option == '-KFoldW':
+    elif option == 'KFoldW':
         MODEL_PATH = os.path.abspath(os.path.join(MODEL_PATH, "KFold_Wrapper_model.h5"))
         train_vgg.train_with_CrossValidation_Wrapper(dataset)
         VGG_16.save_model(MODEL_PATH)
 
-    elif option == '-GridSearch':
+    elif option == 'GridSearch':
+        print ("[WARNING!!!] THIS mode is not available!")
         exit(0)
         train_vgg.train_with_GridSearchCV(dataset)
     
-    elif option == '-help':
+    elif option == 'help':
         print_usage(sys.argv[0])
     
     else:
         print_usage(sys.argv[0])
 
+
+
+
+if __name__ == '__main__':
+    numOfargv = len(sys.argv)
+    if numOfargv < 2:
+        print_usage(sys.argv[0])
+        
+    option = sys.argv[1]
+    train_model_main(option)
+    
     
 
         

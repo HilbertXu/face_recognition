@@ -63,7 +63,7 @@ def VGG(input_op, keep_prob=0.5, class_num=62):
 									conv2_1_w, conv2_2_w, 
 									conv3_1_w, conv3_2_w, conv3_3_w,
 									conv4_1_w, conv4_2_w, conv4_3_w)
-	return predicitions, softmax, fc8, params_loss, p
+	return predicitions, softmax, fc8, params_loss
 
 def gradients_visualization():
 	return 0

@@ -15,8 +15,8 @@ import matplotlib.pyplot as plt
 
 
 HISTORY_PATH = '/home/kamerider/machine_learning/face_recognition/keras/History/Train_History.txt'
-FIGURE_PATH = '/home/kamerider/machine_learning/face_recognition/keras/History'
-
+FIGURE_PATH = '/home/kamerider/machine_learning/face_recognition/'
+IMAGE_SIZE = 64
 
 #一个写成装饰器形式的计时器，在函数前加@clock便可以输出每次调用该函数运行时间
 def clock(func):
@@ -30,8 +30,38 @@ def clock(func):
         return result
     return clocked
 
-def resize_image (image):
-        return cv2.resize (image, (64, 64))
+def resize_image(image, height = IMAGE_SIZE, width = IMAGE_SIZE, padding=False):
+	#若输入图片是一个非正方形的图片需要扩展边界将其变成一个正方形图片之后再缩放
+	if padding:
+		top, bottom, left, right = (0, 0, 0, 0)
+
+		#get the size of image
+		h, w, _ = image.shape
+
+		#if width != height
+		#get the longer one
+		longest_edge = max(h, w)
+
+		#calculate how much pixel should be add to the shorter side
+		if h < longest_edge:
+			dh = longest_edge - h
+			top = dh // 2
+			bottom = dh - top
+		elif w < longest_edge:
+			dw = longest_edge - w
+			left = dw // 2
+			right = dw - left
+		else:
+			pass
+		#set the border color
+		BLACK = [0, 0, 0]
+		#border
+		constant = cv2.copyMakeBorder(image, top , bottom, left, right, cv2.BORDER_CONSTANT, value = BLACK)
+		#resize image & return
+		return cv2.resize(constant, (height, width))
+	
+	if not padding:
+		return cv2.resize(image, (height, width))
     
 def Bubble_Sort (array):
         '''
