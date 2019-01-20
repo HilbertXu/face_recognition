@@ -1,5 +1,5 @@
 # face_recognition
-A face_recognition program with tensorflow and keras
+A face_recognition program with tensorflow(keras) and Pytorch
 
 #requirements
 
