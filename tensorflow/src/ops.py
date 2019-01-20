@@ -223,12 +223,13 @@ def loss_op(logits, label_batches, regular):
 	f1和f2之间很像，实际上官方文档已经标记出f1已经是deprecated 状态，推荐使用f2。
 	两者唯一的区别在于f1在进行反向传播的时候，只对logits进行反向传播，labels保持不变。而f2在进行反向传播的时候，
 	同时对logits和labels都进行反向传播，如果将labels传入的tensor设置为stop_gradients，就和f1一样了。 
+        '''
 
 	with tf.variable_scope('loss_op', reuse=tf.AUTO_REUSE):
 	cross_entropy = tf.nn.softmax_cross_entropy_with_logits_v2(logits=logits,labels=label_batches)
 	cost = tf.reduce_mean(cross_entropy)
 	return cost
-	'''
+	
 	with tf.variable_scope('loss_op'):
 		loss = -tf.reduce_mean(label_batches*tf.log(tf.clip_by_value(logits, 1e-10, 1.0))) + regular
 		return loss

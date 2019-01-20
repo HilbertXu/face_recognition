@@ -15,6 +15,7 @@ from utils import *
 import numpy as np
 import random
 from train_model import *
+from utils import print_matrix
 import PIL.Image as Image
 
 cascade_path = '/home/kamerider/machine_learning/face_recognition/dataset/haarcascade_frontalface_alt.xml'
@@ -96,23 +97,9 @@ def image_visualization():
                 from_image = Image.fromarray((images[row*8+col]*255).astype('uint8')).convert('RGB')
                 to_image.paste(from_image, (col*SIZE, row*SIZE))
     return to_image.save('../test.png')
-
-def print_matrix(list):
-    for row in range(8):
-        if row == 7:
-            for col in range(6):
-                print (list[row*8+col], end='')
-                print ('\t', end='')
-            print ('\n')
-        else:
-            for col in range(8):
-                print (list[row*8+col], end='')
-                print ('\t', end='')
-            print ('\n')
         
 
-
-def face_detect_main(options):
+def face_detect_main(options, cam_id=0):
     #装载训练好的模型
     model = Model()
     model.load_model(MODEL_PATH)
@@ -137,7 +124,7 @@ def face_detect_main(options):
     
     elif options == 'use_camera':
         #默认使用电脑自带摄像头进行预测，修改camera_id可以选择使用外接摄像头
-        camera_id = 0 
+        camera_id = cam_id
         color = (255,0,255)
         cap = cv2.VideoCapture(camera_id)
         order_sheet, mini_id = generate_orderSheet(TEST_DATA)
@@ -147,16 +134,17 @@ def face_detect_main(options):
             frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             #加载cascade分类器,并从图像中分割出人脸部分
             cascade = cv2.CascadeClassifier(cascade_path)
-            faceRects = cascade.detectMultiScale(frame_gray, scaleFactor=1.2, minNeighbors=3, minSize=(32,32), maxSize=(128,128))
+            faceRects = cascade.detectMultiScale(frame_gray, scaleFactor=1.2, minNeighbors=3, minSize=(48,48), maxSize=(192,192))
 
             if len(faceRects)>0:
-                for faceRects in faceRects:
+                for faceRect in faceRects:
                     x, y, w, h = faceRect
                     #send face image to network
                     image = frame[y - 30: y + h + 30, x - 30: x + w + 30]
                     image = cv2.cvtColor(
                         resize_image(image, padding=True), cv2.COLOR_BGR2RGB
                     ).astype(np.float32)/255
+                    image = image.reshape(1,64,64,3)
                     faceID = model.predict(image)
                     #using faceID to set the annotation
                     label = str(order_sheet[faceID] + mini_id)
@@ -167,7 +155,7 @@ def face_detect_main(options):
                                 (x + 10, y - 40),                      #坐标
                                 cv2.FONT_HERSHEY_SIMPLEX,              #字体
                                 1,                                     #字号
-                                color,                           #颜色
+                                color,                                 #颜色
                                 2)                                     #字的线宽
             cv2.imshow("face_detect", frame)
 
@@ -182,4 +170,4 @@ def face_detect_main(options):
         
 
 if __name__ == '__main__':
-    face_detect_main('use_images')
+    face_detect_main('use_camera')

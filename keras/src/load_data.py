@@ -13,7 +13,7 @@ import cv2
 import timeit
 from keras.utils import np_utils
 from sklearn.model_selection import train_test_split
-from utils import clock, resize_image, Bubble_Sort, Get_ID
+from utils import clock, resize_image, Bubble_Sort, Get_ID, print_matrix
 
 TESTDATA_DIR = '/home/kamerider/Documents/TestData'
 #TESTDATA_DIR = '/home/kamerider/Documents/small_test'
@@ -86,7 +86,7 @@ class Dataset:
         print ("=============================================================================")
         print ('||                  generated order sheet:                                 ||')
         print ("=============================================================================")
-        print (self.order_sheet)
+        print_matrix(self.order_sheet)
         print ("=============================================================================\n")
 
     @clock

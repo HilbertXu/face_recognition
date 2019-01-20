@@ -125,3 +125,16 @@ def visualization(hist, nb_epoch):
 	plt.legend()
 	plt.savefig(FIGURE_PATH+'/acc_figure.png')
 	plt.show()
+
+def print_matrix(list):
+    for row in range(8):
+        if row == 7:
+            for col in range(6):
+                print (list[row*8+col], end='')
+                print ('\t', end='')
+            print ('\n')
+        else:
+            for col in range(8):
+                print (list[row*8+col], end='')
+                print ('\t', end='')
+            print ('\n')

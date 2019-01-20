@@ -155,16 +155,16 @@ class Model:
         self.model.add(Activation('relu'))
         self.model.add(Convolution2D(512, 3, 3, border_mode='same'))
         self.model.add(Activation('relu'))
-        self.model.add(MaxPooling2D(pool_size=(2, 2)))                      #11 池化层
-        self.model.add(Dropout(0.25))                                       #12 Dropout层
+        self.model.add(MaxPooling2D(pool_size=(2, 2)))                      
+        self.model.add(Dropout(0.25))                                       
 
-        self.model.add(Flatten())                                           #13 Flatten层
-        self.model.add(Dense(4096))                                          #14 Dense层,又被称作全连接层
-        self.model.add(Activation('relu'))                                  #15 激活函数层
-        self.model.add(Dropout(0.5))                                        #16 Dropout层
+        self.model.add(Flatten())                                           
+        self.model.add(Dense(4096))                                          
+        self.model.add(Activation('relu'))                                  
+        self.model.add(Dropout(0.5))                                        
 
         self.model.add(Dense(4096))
-        self.model.add(Activation('relu'))                                   #17 Dense层
+        self.model.add(Activation('relu'))                                   
         self.model.add(Dropout(0.5))
 
         #nb_classes

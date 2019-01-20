@@ -64,6 +64,8 @@ A face_recognition program with tensorflow and keras
 
 #Usage
 
+整体启动只需要直接运行项目根目录下的 **main.py** 即可
+
 1. Keras & Tensorflow 框架
 
    1. 程序运行(确保在face_recognition项目目录下)

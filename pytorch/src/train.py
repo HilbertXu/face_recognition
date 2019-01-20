@@ -18,12 +18,14 @@ import numpy as np
 from build_model import *
 from load_data import *
 from utils import *
+from tensorboardX import SummaryWriter
 
 #trainning parameters
 BATCH_SIZE = 64
 EPOCH_NUM = 10
 LR = 0.01
 USE_CUDA = torch.cuda.is_available()
+MODEL_DIR = '../model'
 
 def train_and_save():
 
@@ -44,7 +46,7 @@ def train_and_save():
             net = torch.nn.DataParallel(net, device_ids=range(torch.cuda.device_count()-1))
         # speed up slightly
         cudnn.benchmark = True
-
+    writer = SummaryWriter(log_dir='../log', comment='VGG16')
     for epoch in range(EPOCH_NUM):
         #定义变量方便记录loss
         running_loss=0
@@ -67,13 +69,15 @@ def train_and_save():
 
             #每十次输出一次loss的平均值和acc的平均值
             if batch_idx%10 == 0:
+                correct=0
                 #计算分类准确率
                 prediction = torch.argmax(outputs, 1)
                 #也可以用torch.eq()函数实现
                 #correct += predicted.eq(targets.data).cpu().sum()
-                running_acc += (prediction == labels).sum().float()
-                running_acc = running_acc/len(labels)
-                print ("[EPOCH %d/%d BATCH %d] loss: %.3f acc: %.3f"%(epoch+1, EPOCH_NUM, batch_idx, running_loss/10, running_acc))
+                correct += (prediction == labels).sum().float()
+                running_acc = correct/len(labels)
+                progress_bar(batch_idx, len(trainloader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
+                            %((running_loss/10), 100.*running_acc, correct, len(labels)))
                 running_loss=0
                 running_acc=0
                 total=0
@@ -96,8 +100,10 @@ def train_and_save():
         print ("[EPOCH %d/%d] val_loss: %.3f val_acc: %.3f"%(epoch+1, EPOCH_NUM, eval_loss/total, eval_acc/total))
 
     print ("Finished Training")
-    torch.save(net, '/home/kamerider/machine_learning/face_recognition/pytorch/models/net.pkl')
-    torch.save(net.state_dict(), '/home/kamerider/machine_learning/face_recognition/pytorch/models/net_params.pkl')
+    global MODEL_DIR
+    print ("model has been saved to %s"%(os.path.abspath(MODEL_DIR)))
+    torch.save(net, os.path.abspath(MODEL_DIR) + '/net.pkl')
+    torch.save(net.state_dict(), os.path.abspath(MODEL_DIR) + '/net_params.pkl')
 
 def net_test():
     # 先切到测试模型
@@ -118,7 +124,7 @@ def net_test():
         total += targets.size(0)
         correct += predicted.eq(targets.data).cpu().sum()
 
-        progress_bar(batch_idx, len(testloader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
+        progress_bar(batch_idx, len(test_loader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
             % (test_loss/(batch_idx+1), 100.*correct/total, correct, total))
 
             

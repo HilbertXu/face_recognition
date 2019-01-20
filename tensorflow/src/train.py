@@ -110,18 +110,14 @@ def read_train_valid_tfrecord():
 	#shuffle buffer 大小设置为所有训练数据的数量，使整个训练集全部打乱
 	dataset_train = dataset_train.shuffle(train_data_size)
 	dataset_train = dataset_train.map(_parse_tfrecord)
-	#dataset_train = dataset_train.map(lambda image, label:(preprocess_image(image, IMAGE_SIZE, IMAGE_SIZE, is_training=True), label), num_parallel_calls=2)
 	dataset_train = dataset_train.batch(BATCH_SIZE, drop_remainder=True)
 	dataset_train = dataset_train.prefetch(5)
-	#train_iterator = dataset_train.make_initializable_iterator()
 	print ("Batch_Size is: %d"%(BATCH_SIZE))
 
 	# 创建 validation dataset 和对应的迭代器
 	dataset_valid = tf.data.TFRecordDataset(valid_file_path)
 	dataset_valid = dataset_valid.map(_parse_tfrecord)
-	#dataset_valid = dataset_valid.map(lambda image, label: (preprocess_image(image, IMAGE_SIZE, IMAGE_SIZE, is_training=False), label), num_parallel_calls=2)
 	dataset_valid = dataset_valid.batch(BATCH_SIZE, drop_remainder=True)
-	#valid_iterator = dataset_valid.make_initializable_iterator()
 
 	return dataset_train, dataset_valid
 

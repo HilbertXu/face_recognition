@@ -56,7 +56,7 @@ LOG_DIR = '../tensorboard'
 
 class Train:
     #在此处修改batch_size, nb_epoch, data_augmentation
-    def __init__(self, model, batch_size=64, nb_epoch=2, data_augmentation=False):
+    def __init__(self, model, batch_size=64, nb_epoch=200, data_augmentation=False):
         #train set
         self.train_image = None
         self.train_label = None
@@ -86,11 +86,11 @@ class Train:
         return onehot_label
     
     def setCallbacks(self, option):
-        #early stopping function
-        early_stopping = EarlyStopping(monitor='val_loss', patience=10, verbose=1, mode='auto')
+        
 
         global CHECKPOINT_DIR
-        if option == 'ShuffleSplit':
+        CHECKPOINT_DIR = os.path.abspath(CHECKPOINT_DIR)
+        if option == 'DataShuffleSplit':
             if not self.data_augmentation:
                 CHECKPOINT_DIR = os.path.abspath(os.path.join(CHECKPOINT_DIR, "ShuffleSplit"))
             else:
@@ -103,11 +103,15 @@ class Train:
             os.makedirs(CHECKPOINT_DIR)
 
         filename = "model_{epoch:02d}-{val_acc:.2f}.h5"
-        CHECK_POINT = os.path.join(CHECKPOINT_DIR, filename)
+        CHECK_POINT = os.path.abspath(os.path.join(CHECKPOINT_DIR, filename))
+
+        #early stopping
+        #10次迭代val_loss不下降则停止训练
+        early_stopping = EarlyStopping(monitor='val_loss', patience=10, verbose=1, mode='auto')
 
         #使用CheckPoint来记录训练过程
         checkpoint = ModelCheckpoint(
-            CHECKPOINT_DIR, monitor='val_acc', verbose=1, 
+            CHECK_POINT, monitor='val_acc', verbose=1, 
             save_best_only=True, save_weights_only=False,
             mode='auto',period=10
             )
@@ -117,7 +121,8 @@ class Train:
             patience=10, verbose=0, mode='auto', 
             epsilon=0.0001, cooldown=0, min_lr=0
             )
-        
+        global LOG_DIR
+        #使用Tensorboard可视化训练过程
         tensorboard = TensorBoard(
             log_dir='LOG_DIR', histogram_freq=0, batch_size=64, write_graph=True, 
             write_grads=False, write_images=False, embeddings_freq=0, 
