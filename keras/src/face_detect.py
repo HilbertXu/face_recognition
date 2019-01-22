@@ -18,9 +18,9 @@ from train_model import *
 from utils import print_matrix
 import PIL.Image as Image
 
-cascade_path = '/home/kamerider/machine_learning/face_recognition/dataset/haarcascade_frontalface_alt.xml'
-TEST_DATA = '/home/kamerider/machine_learning/face_recognition/dataset/TestData'
-MODEL_PATH = '/home/kamerider/machine_learning/face_recognition/keras/model/KFold_Manual_model.h5'
+cascade_path = '../../dataset/haarcascade_frontalface_alt.xml'
+TEST_DATA = '../../dataset/TestData'
+MODEL_PATH = '../model/KFold_Manual_model.h5'
 IMAGE_SIZE = 64
 
 images=[]

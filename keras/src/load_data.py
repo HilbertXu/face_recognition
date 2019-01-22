@@ -16,7 +16,8 @@ from sklearn.model_selection import train_test_split
 from utils import clock, resize_image, Bubble_Sort, Get_ID, print_matrix
 
 TESTDATA_DIR = '/home/kamerider/Documents/TestData'
-#TESTDATA_DIR = '/home/kamerider/Documents/small_test'
+DATABASE_DIR = '/home/kamerider/Documents/DataBase'
+NPZ_PATH = '/home/kamerider/Documents/DataBase.npz'
 
 #将生成的order_sheet传出，便于在识别时映射学号
 ORDER_SHEET = []
@@ -154,6 +155,13 @@ class Dataset:
                         if temp == self.order_sheet[i]:
                             current_label = i
                     self.test_label = np.append (self.test_label, current_label)
+    
+    def generate_npz(self):
+        np.savez(
+            '/home/kamerider/Documents/DataBase.npz', images=self.images, labels=self.labels, 
+            test_images=self.test_image, test_labels=self.test_label
+            )
+
 
     
     def Load_Dataset (self):
@@ -188,11 +196,54 @@ class Dataset:
         print (self.test_image.shape)
         print ('===========================')    
         #print (self.test_label.shape)
+        print ('||  generate .npz files   ||')
+        self.generate_npz()
+    
+    def main(self):
+        #先查看是否有现成的.npz文件，如果有直接读取，没有的话直接读取文件夹中的数据
+        try:
+            print ('\n')
+            #set maximum output in terminal
+            np.set_printoptions(threshold = 1e6)
+            print ("=========================")
+            print ('Generating Order Sheet ||')
+            print ("=========================\n")
+            self.Generate_OrderSheet()
+            print ("====================================")
+            print ('Find All images & Generate Labels ||')
+            print ("====================================\n")
+            print ('[INFO] Reading data from DataBase.npz')
+            data = np.load(NPZ_PATH)
+            self.images = data['images']
+            self.labels = data['labels']
+            self.test_image = data['test_images']
+            self.test_label = data['test_labels']
+            print ('===========================')
+            print ('||image array shape is : ||')
+            print ('===========================')
+            print (self.images.shape)
+            print ('===========================')
+            print ('||labels array shape is :||')
+            print ('===========================')
+            print (self.labels.shape)
+            print ('===========================')  
+            print ('||test image shape is :  ||')
+            print ('===========================')
+            print (self.test_image.shape)
+            print ('===========================')  
+            print ('||test image shape is :  ||')  
+            print ('===========================')
+            print (self.test_label.shape)
+            print ('===========================')
+        except:
+            self.Load_Dataset()
+
+
 
        
 if __name__ == '__main__':
-    dataset = Dataset(sys.argv[1])
-    dataset.Load_Dataset()
+    dataset = Dataset(path=DATABASE_DIR)
+    dataset.main()
 
 
         

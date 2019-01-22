@@ -335,7 +335,7 @@ class Train:
 def train_model_main(option):
     #load dataset
     dataset = Dataset (DATABASE_ROOT_DIR)
-    dataset.Load_Dataset()
+    dataset.main()
     #build model
     VGG_16 = Model()
     VGG_16.build_model(dataset) 
